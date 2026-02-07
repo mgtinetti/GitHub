@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { YEARS } from "@/lib/constants";
+import { fetchActiveYears } from "@/lib/supabase/queries";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
@@ -11,10 +12,23 @@ export default function Navbar() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
+  const [years, setYears] = useState<number[]>([...YEARS]);
 
-  const currentYearFromPath = YEARS.find((y) =>
+  useEffect(() => {
+    fetchActiveYears().then((activeYears) => {
+      if (activeYears.length > 0) {
+        // Merge active years with defaults, deduplicate, sort descending
+        const merged = [...new Set([...activeYears, ...YEARS])].sort((a, b) => b - a);
+        setYears(merged);
+      }
+    });
+  }, []);
+
+  const currentYearFromPath = years.find((y) =>
     pathname.startsWith(`/${y}`)
   );
+
+  const latestYear = years[0] || 2025;
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path + "/");
@@ -51,7 +65,7 @@ export default function Navbar() {
               </button>
               {yearDropdownOpen && (
                 <div className="absolute top-full mt-1 left-0 glass-strong rounded-xl py-2 min-w-[120px] shadow-2xl border border-white/10">
-                  {YEARS.map((year) => (
+                  {years.map((year) => (
                     <Link
                       key={year}
                       href={`/${year}`}
@@ -70,7 +84,7 @@ export default function Navbar() {
             </div>
 
             <Link
-              href="/awards/2025"
+              href={`/awards/${latestYear}`}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 isActive("/awards")
                   ? "text-amber-500"
@@ -81,7 +95,7 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/episodes/2025"
+              href={`/episodes/${latestYear}`}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 isActive("/episodes") || isActive("/performances") || isActive("/all-time")
                   ? "text-amber-500"
@@ -154,7 +168,7 @@ export default function Navbar() {
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-3 mb-2">
             Rankings by Year
           </p>
-          {YEARS.map((year) => (
+          {years.map((year) => (
             <Link
               key={year}
               href={`/${year}`}
@@ -170,21 +184,21 @@ export default function Navbar() {
           ))}
           <div className="h-px bg-white/5 my-2" />
           <Link
-            href="/awards/2025"
+            href={`/awards/${latestYear}`}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
             onClick={() => setMenuOpen(false)}
           >
             Awards
           </Link>
           <Link
-            href="/episodes/2025"
+            href={`/episodes/${latestYear}`}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
             onClick={() => setMenuOpen(false)}
           >
             Episode Rankings
           </Link>
           <Link
-            href="/performances/2025"
+            href={`/performances/${latestYear}`}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
             onClick={() => setMenuOpen(false)}
           >

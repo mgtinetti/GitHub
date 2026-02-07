@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
+import { fetchActiveYears } from "@/lib/supabase/queries";
 import ShowSearch from "@/components/manage/ShowSearch";
 import SeasonPicker from "@/components/manage/SeasonPicker";
 import RankingList, { type ManagedEntry } from "@/components/manage/RankingList";
@@ -34,12 +35,23 @@ export default function ManageRankingsPage() {
 function ManageRankingsContent() {
   const { user, displayName, loading: authLoading } = useAuth();
   const [year, setYear] = useState<number>(YEARS[0]);
+  const [availableYears, setAvailableYears] = useState<number[]>([...YEARS]);
   const [entries, setEntries] = useState<ManagedEntry[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [selectedShow, setSelectedShow] = useState<SelectedShow | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showAddYear, setShowAddYear] = useState(false);
+  const [newYearInput, setNewYearInput] = useState("");
+
+  // Load available years
+  useEffect(() => {
+    fetchActiveYears().then((activeYears) => {
+      const merged = [...new Set([...activeYears, ...YEARS])].sort((a, b) => b - a);
+      setAvailableYears(merged);
+    });
+  }, []);
 
   // Load existing rankings from Supabase
   const loadRankings = useCallback(
@@ -354,7 +366,7 @@ function ManageRankingsContent() {
 
       {/* Year Selector */}
       <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2">
-        {YEARS.map((y) => (
+        {availableYears.map((y) => (
           <button
             key={y}
             onClick={() => {
@@ -370,6 +382,55 @@ function ManageRankingsContent() {
             {y}
           </button>
         ))}
+        {showAddYear ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const parsed = parseInt(newYearInput, 10);
+              if (parsed >= 2000 && parsed <= 2100 && !availableYears.includes(parsed)) {
+                setAvailableYears((prev) => [parsed, ...prev].sort((a, b) => b - a));
+                setYear(parsed);
+              }
+              setNewYearInput("");
+              setShowAddYear(false);
+            }}
+            className="flex items-center gap-1 shrink-0"
+          >
+            <input
+              type="number"
+              min="2000"
+              max="2100"
+              value={newYearInput}
+              onChange={(e) => setNewYearInput(e.target.value)}
+              placeholder="Year"
+              autoFocus
+              className="w-20 px-3 py-2 rounded-xl text-sm bg-white/5 border border-amber-500/30 text-white text-center focus:outline-none focus:border-amber-500"
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 rounded-xl text-sm font-bold bg-amber-500 text-black"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowAddYear(false); setNewYearInput(""); }}
+              className="px-2 py-2 text-gray-500 hover:text-white"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => setShowAddYear(true)}
+            className="px-3 py-2 rounded-xl text-sm font-bold bg-white/5 text-gray-500 hover:text-amber-500 hover:bg-white/10 transition-all shrink-0 border border-dashed border-white/10"
+            title="Add a new year"
+          >
+            + Year
+          </button>
+        )}
       </div>
 
       {/* Search + Season Picker */}
