@@ -51,18 +51,26 @@ async function ensureUserRecord(authUser: SupabaseUser): Promise<string | null> 
     .select("email")
     .order("added_at", { ascending: true });
 
-  const knownNames = ["Tinetti", "Chubbs", "Poteete"];
+  // Explicit email-to-name mapping
+  const emailNameMap: Record<string, { name: string; role: string }> = {
+    tcwhite: { name: "Chubbs", role: "contributor" },
+    wmpoteete: { name: "Poteete", role: "contributor" },
+  };
+
   let displayName = email.split("@")[0];
   let role = "contributor";
 
-  if (allAllowed) {
-    const idx = allAllowed.findIndex(
-      (a: { email: string }) => a.email.toLowerCase() === emailLower
-    );
-    if (idx >= 0 && idx < knownNames.length) {
-      displayName = knownNames[idx];
-    }
-    if (idx === 0) {
+  // Check explicit mapping by email prefix
+  const emailPrefix = emailLower.split("@")[0];
+  const mapped = emailNameMap[emailPrefix];
+  if (mapped) {
+    displayName = mapped.name;
+    role = mapped.role;
+  } else if (allAllowed) {
+    // First allowed email is admin (Tinetti)
+    const firstEmail = allAllowed[0]?.email?.toLowerCase();
+    if (firstEmail === emailLower) {
+      displayName = "Tinetti";
       role = "admin";
     }
   }
