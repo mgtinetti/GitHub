@@ -1,11 +1,41 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import SideBySideView from "@/components/ranking/SideBySideView";
-import ActivityFeed from "@/components/ranking/ActivityFeed";
-import { USERS, RANKINGS_2025, ACTIVITY_FEED } from "@/lib/mock-data";
-import { CURRENT_YEAR, YEARS } from "@/lib/constants";
+import { fetchRankingsForYear, fetchActiveYears } from "@/lib/supabase/queries";
+import { YEARS } from "@/lib/constants";
+import type { RankingEntry, User } from "@/types";
 
 export default function HomePage() {
-  const displayYear = YEARS[0];
+  const [years, setYears] = useState<number[]>([...YEARS]);
+  const [displayYear, setDisplayYear] = useState<number>(YEARS[0]);
+  const [rankings, setRankings] = useState<Record<string, RankingEntry[]>>({});
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchActiveYears().then((activeYears) => {
+      if (activeYears.length > 0) {
+        const merged = [...new Set([...activeYears, ...YEARS])].sort((a, b) => b - a);
+        setYears(merged);
+        setDisplayYear(merged[0]);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      const { rankings: r, users: u } = await fetchRankingsForYear(displayYear);
+      setRankings(r);
+      setUsers(u);
+      setLoading(false);
+    }
+    loadData();
+  }, [displayYear]);
+
+  const totalEntries = Object.values(rankings).reduce((sum, r) => sum + r.length, 0);
 
   return (
     <div className="animate-fade-in">
@@ -26,8 +56,8 @@ export default function HomePage() {
           </p>
 
           {/* Year Quick Links */}
-          <div className="flex gap-3 justify-center mt-8">
-            {YEARS.map((year) => (
+          <div className="flex gap-3 justify-center mt-8 flex-wrap">
+            {years.map((year) => (
               <Link
                 key={year}
                 href={`/${year}`}
@@ -46,31 +76,33 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
-          {/* Rankings */}
-          <div className="lg:col-span-3">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-black uppercase tracking-tight">
-                {displayYear} Rankings
-              </h2>
-              <div className="h-1 w-20 bg-amber-500 rounded-full hidden sm:block" />
-            </div>
-            <SideBySideView
-              rankings={RANKINGS_2025}
-              users={USERS}
-              year={displayYear}
-              limit={10}
-            />
-          </div>
-
-          {/* Activity Feed Sidebar */}
-          <div className="lg:col-span-1">
-            <h2 className="text-xl font-black uppercase tracking-tight mb-8">
-              Recent Activity
-            </h2>
-            <ActivityFeed events={ACTIVITY_FEED} limit={8} />
-          </div>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-3xl font-black uppercase tracking-tight">
+            {displayYear} Rankings
+          </h2>
+          <div className="h-1 w-20 bg-amber-500 rounded-full hidden sm:block" />
         </div>
+
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-500 text-sm">Loading rankings...</p>
+          </div>
+        ) : totalEntries > 0 ? (
+          <SideBySideView
+            rankings={rankings}
+            users={users}
+            year={displayYear}
+            limit={10}
+          />
+        ) : (
+          <div className="glass rounded-2xl border border-white/5 p-12 text-center">
+            <p className="text-gray-400 text-lg mb-2">No rankings for {displayYear} yet</p>
+            <p className="text-gray-600 text-sm">
+              Sign in and head to Manage Rankings to start adding shows.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
