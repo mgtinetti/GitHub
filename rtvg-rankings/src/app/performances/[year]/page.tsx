@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props) {
   const { year } = await params;
   return {
     title: `Best TV Performances of ${year}`,
-    description: `The best individual acting performances of ${year} as ranked by Matt, Mike & Jake`,
+    description: `The best individual acting performances of ${year} as ranked by Tinetti, Chubbs & Poteete`,
   };
 }
 

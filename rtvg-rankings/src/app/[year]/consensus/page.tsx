@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props) {
   const { year } = await params;
   return {
     title: `Consensus Rankings ${year}`,
-    description: `Group consensus TV season rankings for ${year} — averaged across Matt, Mike & Jake`,
+    description: `Group consensus TV season rankings for ${year} — averaged across Tinetti, Chubbs & Poteete`,
   };
 }
 

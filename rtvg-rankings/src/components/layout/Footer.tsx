@@ -75,8 +75,8 @@ export default function Footer() {
 
         <div className="border-t border-white/5 pt-8 text-center">
           <p className="text-xs text-gray-600">
-            &copy; {new Date().getFullYear()} RTVG Rankings. Built for Matt,
-            Mike &amp; Jake.
+            &copy; {new Date().getFullYear()} RTVG Rankings. Built for Tinetti,
+            Chubbs &amp; Poteete.
           </p>
         </div>
       </div>

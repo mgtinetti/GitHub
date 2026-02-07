@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props) {
   const { year } = await params;
   return {
     title: `Biggest Disagreements ${year}`,
-    description: `See where Matt, Mike & Jake disagree most on their ${year} TV rankings`,
+    description: `See where Tinetti, Chubbs & Poteete disagree most on their ${year} TV rankings`,
   };
 }
 

@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { YEARS } from "@/lib/constants";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user, loading, signInWithGoogle, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
 
@@ -103,12 +105,31 @@ export default function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/admin"
-              className="hidden md:block bg-white/5 hover:bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold border border-white/10 transition-colors"
-            >
-              Sign In
-            </Link>
+            {!loading && (
+              user ? (
+                <div className="hidden md:flex items-center gap-3">
+                  <Link
+                    href="/admin"
+                    className="text-xs text-gray-400 hover:text-amber-500 font-semibold transition-colors"
+                  >
+                    Manage
+                  </Link>
+                  <button
+                    onClick={signOut}
+                    className="bg-white/5 hover:bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold border border-white/10 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={signInWithGoogle}
+                  className="hidden md:block bg-white/5 hover:bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold border border-white/10 transition-colors"
+                >
+                  Sign In
+                </button>
+              )
+            )}
 
             {/* Mobile hamburger */}
             <button
@@ -184,13 +205,30 @@ export default function Navbar() {
             Blog
           </Link>
           <div className="h-px bg-white/5 my-2" />
-          <Link
-            href="/admin"
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
-            onClick={() => setMenuOpen(false)}
-          >
-            Sign In
-          </Link>
+          {user ? (
+            <>
+              <Link
+                href="/admin"
+                className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+                onClick={() => setMenuOpen(false)}
+              >
+                Manage Rankings
+              </Link>
+              <button
+                onClick={() => { signOut(); setMenuOpen(false); }}
+                className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => { signInWithGoogle(); setMenuOpen(false); }}
+              className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+            >
+              Sign In
+            </button>
+          )}
         </div>
       )}
     </nav>

@@ -4,7 +4,7 @@ import { USERS } from "@/lib/mock-data";
 
 export const metadata = {
   title: "All-Time Rankings",
-  description: "All-time top TV seasons as ranked by Matt, Mike & Jake",
+  description: "All-time top TV seasons as ranked by Tinetti, Chubbs & Poteete",
 };
 
 export default function AllTimeOverviewPage() {

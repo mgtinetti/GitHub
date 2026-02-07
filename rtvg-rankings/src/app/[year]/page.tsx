@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props) {
   const { year } = await params;
   return {
     title: `Best TV Shows of ${year}`,
-    description: `See how Matt, Mike & Jake ranked the best TV seasons of ${year}`,
+    description: `See how Tinetti, Chubbs & Poteete ranked the best TV seasons of ${year}`,
   };
 }
 

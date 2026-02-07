@@ -1,6 +1,6 @@
 export const SITE_NAME = "RTVG Rankings";
 export const SITE_DESCRIPTION =
-  "The definitive record of our television journey — TV season rankings by Matt, Mike & Jake.";
+  "The definitive record of our television journey — TV season rankings by Tinetti, Chubbs & Poteete.";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://rtvgrankings.com";
 
 export const YEARS = [2025, 2024, 2023, 2022, 2021] as const;
