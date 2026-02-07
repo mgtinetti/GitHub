@@ -180,6 +180,8 @@ export default function ImportPage() {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [done, setDone] = useState(false);
+  const [missingUsers, setMissingUsers] = useState<string[]>([]);
+  const [preflightDone, setPreflightDone] = useState(false);
 
   // Count total entries to import
   const totalEntries = Object.entries(IMPORT_DATA).reduce((sum, [_, users]) => {
@@ -188,10 +190,28 @@ export default function ImportPage() {
     }, 0);
   }, 0);
 
+  // Required user names from import data
+  const requiredUsers = [...new Set(
+    Object.values(IMPORT_DATA).flatMap((users) => Object.keys(users))
+  )];
+
+  async function checkPreflight() {
+    const { data: dbUsers } = await supabase
+      .from("users")
+      .select("id, display_name")
+      .order("created_at", { ascending: true });
+
+    const existingNames = new Set((dbUsers || []).map((u: { display_name: string }) => u.display_name));
+    const missing = requiredUsers.filter((name) => !existingNames.has(name));
+    setMissingUsers(missing);
+    setPreflightDone(true);
+  }
+
   async function runImport() {
     if (!user) return;
     setRunning(true);
     setDone(false);
+    setResults([]);
     const allResults: ImportResult[] = [];
 
     // First, get or map user IDs from Supabase
@@ -203,6 +223,14 @@ export default function ImportPage() {
     const userMap: Record<string, string> = {};
     for (const u of dbUsers || []) {
       userMap[u.display_name] = u.id;
+    }
+
+    // Check all required users exist
+    const missing = requiredUsers.filter((name) => !userMap[name]);
+    if (missing.length > 0) {
+      setMissingUsers(missing);
+      setRunning(false);
+      return;
     }
 
     // Cache for shows we've already looked up (by TMDB ID)
@@ -229,6 +257,7 @@ export default function ImportPage() {
         seasonDbId: string;
         seasonNumber: number;
       } | null> = {};
+      const showLookupErrors: Record<string, string> = {};
 
       for (const showName of allShowNames) {
         try {
@@ -236,6 +265,7 @@ export default function ImportPage() {
           const tmdbResult = await searchTMDB(showName);
           if (!tmdbResult) {
             showNameToSeason[showName] = null;
+            showLookupErrors[showName] = `TMDB search returned no results for "${showName}"`;
             continue;
           }
 
@@ -252,6 +282,7 @@ export default function ImportPage() {
             details = await getShowDetails(tmdbId);
             if (!details) {
               showNameToSeason[showName] = null;
+              showLookupErrors[showName] = `TMDB details fetch failed for ID ${tmdbId}`;
               continue;
             }
 
@@ -283,6 +314,7 @@ export default function ImportPage() {
 
               if (error || !newShow) {
                 showNameToSeason[showName] = null;
+                showLookupErrors[showName] = `DB insert failed for show: ${error?.message || "unknown error"}`;
                 continue;
               }
               showDbId = newShow.id;
@@ -295,6 +327,7 @@ export default function ImportPage() {
           const season = findSeasonForYear(details.seasons || [], year);
           if (!season) {
             showNameToSeason[showName] = null;
+            showLookupErrors[showName] = `No season found airing in ${year} (show: ${details.name}, seasons: ${(details.seasons || []).filter((s: any) => s.season_number > 0).map((s: any) => `S${s.season_number}:${s.air_date || "?"}`).join(", ")})`;
             continue;
           }
 
@@ -332,6 +365,7 @@ export default function ImportPage() {
 
               if (error || !newSeason) {
                 showNameToSeason[showName] = null;
+                showLookupErrors[showName] = `DB insert failed for season: ${error?.message || "unknown error"}`;
                 continue;
               }
               seasonDbId = newSeason.id;
@@ -346,6 +380,7 @@ export default function ImportPage() {
           };
         } catch (err) {
           showNameToSeason[showName] = null;
+          showLookupErrors[showName] = `Unexpected error: ${err instanceof Error ? err.message : String(err)}`;
         }
 
         // Small delay to avoid rate-limiting TMDB
@@ -399,7 +434,7 @@ export default function ImportPage() {
               rank,
               showName,
               status: "error",
-              message: "Could not find on TMDB",
+              message: showLookupErrors[showName] || "Could not find on TMDB",
             });
             continue;
           }
@@ -497,8 +532,44 @@ export default function ImportPage() {
         <p className="text-xs text-gray-500 mt-4">{totalEntries} total entries to import</p>
       </div>
 
+      {/* Preflight Check */}
+      {!preflightDone && !done && (
+        <button
+          onClick={checkPreflight}
+          className="w-full py-4 rounded-xl font-bold text-lg transition-all mb-8 bg-white/10 hover:bg-white/20 text-white"
+        >
+          Check Prerequisites
+        </button>
+      )}
+
+      {/* Missing Users Warning */}
+      {missingUsers.length > 0 && (
+        <div className="glass rounded-xl border border-red-500/30 bg-red-500/5 p-6 mb-8">
+          <h2 className="text-lg font-bold text-red-400 mb-2">Missing Users</h2>
+          <p className="text-sm text-gray-300 mb-3">
+            The following users must sign in to the site before import can proceed:
+          </p>
+          <ul className="space-y-1">
+            {missingUsers.map((name) => (
+              <li key={name} className="text-red-400 text-sm font-mono">
+                {name} - not found in database
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-gray-500 mt-3">
+            Have them visit the site and click &quot;Sign in with Google&quot;, then click &quot;Check Prerequisites&quot; again.
+          </p>
+          <button
+            onClick={checkPreflight}
+            className="mt-4 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors"
+          >
+            Re-check
+          </button>
+        </div>
+      )}
+
       {/* Import Button */}
-      {!done && (
+      {preflightDone && missingUsers.length === 0 && !done && (
         <button
           onClick={runImport}
           disabled={running}
@@ -530,12 +601,22 @@ export default function ImportPage() {
             </div>
           </div>
 
-          <Link
-            href="/admin/rankings"
-            className="block w-full py-3 rounded-xl bg-amber-500 text-black font-bold text-center hover:bg-amber-400 transition-colors mb-6"
-          >
-            Go to Manage Rankings
-          </Link>
+          <div className="flex gap-4 mb-6">
+            <Link
+              href="/admin/rankings"
+              className="flex-1 py-3 rounded-xl bg-amber-500 text-black font-bold text-center hover:bg-amber-400 transition-colors"
+            >
+              Go to Manage Rankings
+            </Link>
+            {errorCount > 0 && (
+              <button
+                onClick={() => { setDone(false); setResults([]); }}
+                className="flex-1 py-3 rounded-xl bg-white/10 text-white font-bold text-center hover:bg-white/20 transition-colors"
+              >
+                Re-run Import
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -550,26 +631,31 @@ export default function ImportPage() {
             return (
               <div key={year} className="glass rounded-xl border border-white/5 p-5">
                 <h3 className="text-lg font-bold text-amber-500 mb-3">{year}</h3>
-                <div className="space-y-1 max-h-60 overflow-y-auto">
+                <div className="space-y-1 max-h-80 overflow-y-auto">
                   {yearResults.map((r, i) => (
                     <div
                       key={i}
-                      className={`flex items-center gap-3 px-3 py-1.5 rounded text-xs ${
+                      className={`px-3 py-1.5 rounded text-xs ${
                         r.status === "success"
                           ? "text-gray-300"
                           : "text-red-400 bg-red-500/5"
                       }`}
                     >
-                      <span className="w-6 text-right text-gray-600 shrink-0">#{r.rank}</span>
-                      <span className="w-16 text-gray-500 shrink-0">{r.user}</span>
-                      <span className="flex-grow truncate">{r.showName}</span>
-                      <span className="shrink-0 text-gray-500">
-                        {r.status === "success" ? r.message : r.message}
-                      </span>
-                      {r.status === "success" ? (
-                        <span className="text-emerald-500 shrink-0">✓</span>
-                      ) : (
-                        <span className="text-red-500 shrink-0">✗</span>
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 text-right text-gray-600 shrink-0">#{r.rank}</span>
+                        <span className="w-16 text-gray-500 shrink-0">{r.user}</span>
+                        <span className="flex-grow truncate">{r.showName}</span>
+                        {r.status === "success" ? (
+                          <>
+                            <span className="shrink-0 text-gray-500">{r.message}</span>
+                            <span className="text-emerald-500 shrink-0">✓</span>
+                          </>
+                        ) : (
+                          <span className="text-red-500 shrink-0">✗</span>
+                        )}
+                      </div>
+                      {r.status === "error" && r.message && (
+                        <p className="ml-[6.5rem] text-[10px] text-red-400/70 mt-0.5 break-words">{r.message}</p>
                       )}
                     </div>
                   ))}
