@@ -111,6 +111,34 @@ export default function AdminPage() {
               </div>
             </Link>
 
+            {/* Import Historical Data */}
+            <Link
+              href="/admin/import"
+              className="glass rounded-xl p-6 border border-white/5 hover:border-amber-500/30 transition-all group col-span-1 md:col-span-2"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Import Data
+                  </h3>
+                  <p className="font-bold text-white group-hover:text-amber-500 transition-colors">
+                    Import historical rankings from spreadsheet
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    One-time import of 2022-2025 data with automatic TMDB matching
+                  </p>
+                </div>
+                <svg
+                  className="w-6 h-6 text-gray-600 group-hover:text-amber-500 transition-colors shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+
             {/* Years */}
             <div className="glass rounded-xl p-6 border border-white/5">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
