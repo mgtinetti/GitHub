@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import SideBySideView from "@/components/ranking/SideBySideView";
-import { fetchRankingsForYear, fetchActiveYears } from "@/lib/supabase/queries";
+import { fetchRankingsForYear, fetchActiveYears, fetchCurrentlyWatching } from "@/lib/supabase/queries";
+import type { CurrentlyWatchingItem } from "@/lib/supabase/queries";
 import { YEARS } from "@/lib/constants";
 import type { RankingEntry, User } from "@/types";
 
@@ -13,6 +15,8 @@ export default function HomePage() {
   const [rankings, setRankings] = useState<Record<string, RankingEntry[]>>({});
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [watching, setWatching] = useState<Record<string, CurrentlyWatchingItem[]>>({});
+  const [watchingUsers, setWatchingUsers] = useState<User[]>([]);
 
   useEffect(() => {
     fetchActiveYears().then((activeYears) => {
@@ -21,6 +25,10 @@ export default function HomePage() {
         setYears(merged);
         setDisplayYear(merged[0]);
       }
+    });
+    fetchCurrentlyWatching().then(({ items, users: u }) => {
+      setWatching(items);
+      setWatchingUsers(u);
     });
   }, []);
 
@@ -104,6 +112,72 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Currently Watching */}
+      {watchingUsers.length > 0 && Object.values(watching).some((items) => items.length > 0) && (
+        <div className="max-w-7xl mx-auto px-4 md:px-8 pb-12">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-black uppercase tracking-tight">
+              Currently <span className="text-amber-500">Watching</span>
+            </h2>
+            <div className="h-1 w-20 bg-amber-500 rounded-full hidden sm:block" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+            {watchingUsers.map((user) => {
+              const items = watching[user.id] || [];
+              if (items.length === 0) return null;
+              return (
+                <div key={user.id} className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3 mb-2 px-1">
+                    {user.avatar_url ? (
+                      <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-amber-500/50">
+                        <Image
+                          src={user.avatar_url}
+                          alt={user.display_name}
+                          fill
+                          className="object-cover"
+                          sizes="32px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-xs border-2 border-amber-500/50">
+                        {user.display_name[0]}
+                      </div>
+                    )}
+                    <h3 className="text-lg font-bold">{user.display_name}</h3>
+                    <div className="flex-grow h-px bg-white/10" />
+                  </div>
+                  <div className="space-y-2">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="glass rounded-xl border border-white/5 p-3 flex items-center gap-3"
+                      >
+                        <div className="relative w-10 h-14 rounded-lg overflow-hidden shrink-0">
+                          <Image
+                            src={item.show.poster_url || "/placeholder-poster.svg"}
+                            alt={item.show.title}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate">{item.show.title}</p>
+                          <p className="text-xs text-gray-400">
+                            Season {item.season_number} &middot; {item.show.network}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

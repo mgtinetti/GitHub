@@ -111,6 +111,34 @@ export default function AdminPage() {
               </div>
             </Link>
 
+            {/* Currently Watching */}
+            <Link
+              href="/admin/watching"
+              className="glass rounded-xl p-6 border border-white/5 hover:border-amber-500/30 transition-all group col-span-1 md:col-span-2"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Currently Watching
+                  </h3>
+                  <p className="font-bold text-white group-hover:text-amber-500 transition-colors">
+                    Manage what you&apos;re currently watching
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Update your currently watching list shown on the homepage
+                  </p>
+                </div>
+                <svg
+                  className="w-6 h-6 text-gray-600 group-hover:text-amber-500 transition-colors shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+
             {/* Import Historical Data */}
             <Link
               href="/admin/import"

@@ -140,3 +140,82 @@ export async function fetchRankingsForYear(
 
   return { rankings, users };
 }
+
+export interface CurrentlyWatchingItem {
+  id: string;
+  user_id: string;
+  show_id: string;
+  season_number: number;
+  added_at: string;
+  show: {
+    id: string;
+    tmdb_id: number;
+    title: string;
+    poster_url: string | null;
+    network: string;
+  };
+}
+
+export async function fetchCurrentlyWatching(): Promise<{
+  items: Record<string, CurrentlyWatchingItem[]>;
+  users: User[];
+}> {
+  const [usersResult, watchingResult] = await Promise.all([
+    supabase.from("users").select("*").order("created_at", { ascending: true }),
+    supabase
+      .from("currently_watching")
+      .select(
+        `
+        id,
+        user_id,
+        show_id,
+        season_number,
+        added_at,
+        shows!inner (
+          id,
+          tmdb_id,
+          title,
+          poster_url,
+          network
+        )
+      `
+      )
+      .order("added_at", { ascending: false }),
+  ]);
+
+  const users: User[] = usersResult.data || [];
+  const rawItems = watchingResult.data || [];
+
+  if (watchingResult.error) {
+    console.error("Failed to fetch currently watching:", watchingResult.error.message);
+  }
+
+  const items: Record<string, CurrentlyWatchingItem[]> = {};
+  for (const user of users) {
+    items[user.id] = [];
+  }
+
+  for (const row of rawItems as any[]) {
+    const show = row.shows;
+    const item: CurrentlyWatchingItem = {
+      id: row.id,
+      user_id: row.user_id,
+      show_id: row.show_id,
+      season_number: row.season_number,
+      added_at: row.added_at,
+      show: {
+        id: show.id,
+        tmdb_id: show.tmdb_id,
+        title: show.title,
+        poster_url: show.poster_url,
+        network: show.network || "Unknown",
+      },
+    };
+    if (!items[row.user_id]) {
+      items[row.user_id] = [];
+    }
+    items[row.user_id].push(item);
+  }
+
+  return { items, users };
+}

@@ -67,7 +67,11 @@ export function generateConsensusRankings(
     }
   }
 
+  // Require at least 2/3 of users to have ranked a show
+  const minRankers = Math.ceil((userIds.length * 2) / 3);
+
   const entries = Array.from(showMap.values())
+    .filter((data) => data.count >= minRankers)
     .map((data) => ({
       show: data.show!,
       season: data.season!,
