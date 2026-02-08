@@ -55,15 +55,21 @@ export default function SideBySideView({
             >
               {/* User Header */}
               <div className="flex items-center gap-3 mb-2 px-1">
-                <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-amber-500/50">
-                  <Image
-                    src={user.avatar_url}
-                    alt={user.display_name}
-                    fill
-                    className="object-cover"
-                    sizes="40px"
-                  />
-                </div>
+                {user.avatar_url ? (
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-amber-500/50">
+                    <Image
+                      src={user.avatar_url}
+                      alt={user.display_name}
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-sm border-2 border-amber-500/50">
+                    {user.display_name[0]}
+                  </div>
+                )}
                 <h2 className="text-xl font-bold">{user.display_name}</h2>
                 <div className="flex-grow h-px bg-white/10" />
                 <span className="text-[10px] font-mono text-gray-500 uppercase">
