@@ -1,0 +1,688 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase/client";
+import { fetchActiveYears } from "@/lib/supabase/queries";
+import ShowSearch from "@/components/manage/ShowSearch";
+
+type ListTab = "episodes" | "performances" | "all-time";
+
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
+
+interface EpisodeItem {
+  id: string;
+  rank_position: number;
+  show_title: string;
+  poster_url: string;
+  season_number: number;
+  episode_number: number;
+  episode_title: string;
+}
+
+interface PerformanceItem {
+  id: string;
+  rank_position: number;
+  actor_name: string;
+  character_name: string | null;
+  show_title: string;
+  season_number: number;
+}
+
+interface AllTimeItem {
+  id: string;
+  rank_position: number;
+  show_title: string;
+  poster_url: string;
+  network: string;
+  season_number: number;
+}
+
+async function ensureShowInDb(tmdbId: number, showName: string, posterPath: string | null) {
+  const { data: existing } = await supabase
+    .from("shows")
+    .select("id")
+    .eq("tmdb_id", tmdbId)
+    .single();
+
+  if (existing) return existing.id;
+
+  let details: any = null;
+  try {
+    const res = await fetch(`/api/tmdb/show/${tmdbId}`);
+    details = await res.json();
+  } catch { /* use fallback */ }
+
+  const posterUrl = posterPath ? `${TMDB_IMAGE_BASE}/w342${posterPath}` : null;
+  const { data: newShow } = await supabase
+    .from("shows")
+    .insert({
+      tmdb_id: tmdbId,
+      title: details?.name || showName,
+      poster_url: posterUrl,
+      genres: (details?.genres || []).map((g: any) => g.name),
+      network: details?.networks?.[0]?.name || "Unknown",
+      status: details?.status || "Unknown",
+    })
+    .select("id")
+    .single();
+
+  return newShow?.id || null;
+}
+
+async function ensureSeasonInDb(showDbId: string, tmdbId: number, seasonNumber: number) {
+  const { data: existing } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("show_id", showDbId)
+    .eq("season_number", seasonNumber)
+    .single();
+
+  if (existing) return existing.id;
+
+  let details: any = null;
+  try {
+    const res = await fetch(`/api/tmdb/show/${tmdbId}`);
+    details = await res.json();
+  } catch { /* use fallback */ }
+
+  const tmdbSeason = (details?.seasons || []).find(
+    (s: any) => s.season_number === seasonNumber
+  );
+
+  const { data: newSeason } = await supabase
+    .from("seasons")
+    .insert({
+      show_id: showDbId,
+      tmdb_season_id: tmdbSeason?.id || 0,
+      season_number: seasonNumber,
+      air_date_start: tmdbSeason?.air_date || null,
+      episode_count: tmdbSeason?.episode_count || 0,
+      poster_url: tmdbSeason?.poster_path
+        ? `${TMDB_IMAGE_BASE}/w342${tmdbSeason.poster_path}`
+        : null,
+    })
+    .select("id")
+    .single();
+
+  return newSeason?.id || null;
+}
+
+export default function ManageListsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const [tab, setTab] = useState<ListTab>("episodes");
+  const [years, setYears] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [saving, setSaving] = useState(false);
+
+  // Shared show selection state
+  const [selectedShow, setSelectedShow] = useState<{
+    id: number; name: string; poster_path: string | null;
+  } | null>(null);
+  const [showSeasons, setShowSeasons] = useState<
+    { season_number: number; name: string; air_date: string | null; episode_count: number }[]
+  >([]);
+  const [loadingSeasons, setLoadingSeasons] = useState(false);
+
+  // Episode form
+  const [epSeasonNum, setEpSeasonNum] = useState("");
+  const [epEpisodeNum, setEpEpisodeNum] = useState("");
+  const [epTitle, setEpTitle] = useState("");
+  const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
+  const [loadingEpisodes, setLoadingEpisodes] = useState(false);
+
+  // Performance form
+  const [perfSeasonNum, setPerfSeasonNum] = useState<number | null>(null);
+  const [actorName, setActorName] = useState("");
+  const [charName, setCharName] = useState("");
+  const [performances, setPerformances] = useState<PerformanceItem[]>([]);
+  const [loadingPerfs, setLoadingPerfs] = useState(false);
+
+  // All-time
+  const [allTime, setAllTime] = useState<AllTimeItem[]>([]);
+  const [loadingAllTime, setLoadingAllTime] = useState(false);
+
+  useEffect(() => {
+    fetchActiveYears().then((y) => {
+      const currentYear = new Date().getFullYear();
+      const merged = [...new Set([currentYear, ...y])].sort((a, b) => b - a);
+      setYears(merged);
+      setSelectedYear(merged[0]);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    if (tab === "episodes") loadEpisodes();
+    if (tab === "performances") loadPerformances();
+    if (tab === "all-time") loadAllTime();
+  }, [user, tab, selectedYear]);
+
+  function resetShowSelection() {
+    setSelectedShow(null);
+    setShowSeasons([]);
+    setEpSeasonNum("");
+    setEpEpisodeNum("");
+    setEpTitle("");
+    setPerfSeasonNum(null);
+    setActorName("");
+    setCharName("");
+  }
+
+  async function onShowSelected(show: { id: number; name: string; poster_path: string | null }) {
+    setSelectedShow(show);
+    if (tab !== "episodes") {
+      setLoadingSeasons(true);
+      try {
+        const res = await fetch(`/api/tmdb/show/${show.id}`);
+        const data = await res.json();
+        setShowSeasons(
+          (data.seasons || [])
+            .filter((s: any) => s.season_number > 0)
+            .map((s: any) => ({
+              season_number: s.season_number,
+              name: s.name,
+              air_date: s.air_date,
+              episode_count: s.episode_count,
+            }))
+        );
+      } catch { setShowSeasons([]); }
+      setLoadingSeasons(false);
+    }
+  }
+
+  // ── Episodes ──────────────────────────────────────────
+
+  async function loadEpisodes() {
+    if (!user) return;
+    setLoadingEpisodes(true);
+    const { data } = await supabase
+      .from("episode_ranking_entries")
+      .select("id, rank_position, season_number, episode_number, episode_title, shows!inner(title, poster_url)")
+      .eq("user_id", user.id)
+      .eq("year", selectedYear)
+      .order("rank_position", { ascending: true });
+
+    setEpisodes(
+      ((data || []) as any[]).map((r) => ({
+        id: r.id,
+        rank_position: r.rank_position,
+        show_title: r.shows?.title || "Unknown",
+        poster_url: r.shows?.poster_url || "/placeholder-poster.svg",
+        season_number: r.season_number,
+        episode_number: r.episode_number,
+        episode_title: r.episode_title,
+      }))
+    );
+    setLoadingEpisodes(false);
+  }
+
+  async function addEpisode() {
+    if (!user || !selectedShow || !epSeasonNum || !epEpisodeNum || !epTitle) return;
+    setSaving(true);
+    const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
+    if (!showDbId) { setSaving(false); return; }
+
+    await supabase.from("episode_ranking_entries").insert({
+      user_id: user.id,
+      year: selectedYear,
+      rank_position: episodes.length + 1,
+      show_id: showDbId,
+      season_number: parseInt(epSeasonNum),
+      episode_number: parseInt(epEpisodeNum),
+      episode_title: epTitle,
+    });
+
+    resetShowSelection();
+    await loadEpisodes();
+    setSaving(false);
+  }
+
+  async function removeEpisode(id: string) {
+    await supabase.from("episode_ranking_entries").delete().eq("id", id);
+    // Re-rank remaining
+    const remaining = episodes.filter((e) => e.id !== id);
+    for (let i = 0; i < remaining.length; i++) {
+      await supabase
+        .from("episode_ranking_entries")
+        .update({ rank_position: i + 1 })
+        .eq("id", remaining[i].id);
+    }
+    await loadEpisodes();
+  }
+
+  // ── Performances ──────────────────────────────────────
+
+  async function loadPerformances() {
+    if (!user) return;
+    setLoadingPerfs(true);
+    const { data } = await supabase
+      .from("performance_ranking_entries")
+      .select("id, rank_position, actor_name, character_name, seasons!inner(season_number, shows!inner(title))")
+      .eq("user_id", user.id)
+      .eq("year", selectedYear)
+      .order("rank_position", { ascending: true });
+
+    setPerformances(
+      ((data || []) as any[]).map((r) => ({
+        id: r.id,
+        rank_position: r.rank_position,
+        actor_name: r.actor_name,
+        character_name: r.character_name,
+        show_title: r.seasons?.shows?.title || "Unknown",
+        season_number: r.seasons?.season_number || 0,
+      }))
+    );
+    setLoadingPerfs(false);
+  }
+
+  async function addPerformance() {
+    if (!user || !selectedShow || perfSeasonNum === null || !actorName) return;
+    setSaving(true);
+    const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
+    if (!showDbId) { setSaving(false); return; }
+    const seasonDbId = await ensureSeasonInDb(showDbId, selectedShow.id, perfSeasonNum);
+    if (!seasonDbId) { setSaving(false); return; }
+
+    await supabase.from("performance_ranking_entries").insert({
+      user_id: user.id,
+      year: selectedYear,
+      rank_position: performances.length + 1,
+      actor_name: actorName,
+      character_name: charName || null,
+      season_id: seasonDbId,
+    });
+
+    resetShowSelection();
+    await loadPerformances();
+    setSaving(false);
+  }
+
+  async function removePerformance(id: string) {
+    await supabase.from("performance_ranking_entries").delete().eq("id", id);
+    const remaining = performances.filter((e) => e.id !== id);
+    for (let i = 0; i < remaining.length; i++) {
+      await supabase
+        .from("performance_ranking_entries")
+        .update({ rank_position: i + 1 })
+        .eq("id", remaining[i].id);
+    }
+    await loadPerformances();
+  }
+
+  // ── All-Time ──────────────────────────────────────────
+
+  async function loadAllTime() {
+    if (!user) return;
+    setLoadingAllTime(true);
+    const { data } = await supabase
+      .from("all_time_entries")
+      .select("id, rank_position, seasons!inner(season_number, shows!inner(title, poster_url, network))")
+      .eq("user_id", user.id)
+      .order("rank_position", { ascending: true });
+
+    setAllTime(
+      ((data || []) as any[]).map((r) => ({
+        id: r.id,
+        rank_position: r.rank_position,
+        show_title: r.seasons?.shows?.title || "Unknown",
+        poster_url: r.seasons?.shows?.poster_url || "/placeholder-poster.svg",
+        network: r.seasons?.shows?.network || "Unknown",
+        season_number: r.seasons?.season_number || 0,
+      }))
+    );
+    setLoadingAllTime(false);
+  }
+
+  async function addAllTime(seasonNumber: number) {
+    if (!user || !selectedShow) return;
+    setSaving(true);
+    const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
+    if (!showDbId) { setSaving(false); return; }
+    const seasonDbId = await ensureSeasonInDb(showDbId, selectedShow.id, seasonNumber);
+    if (!seasonDbId) { setSaving(false); return; }
+
+    await supabase.from("all_time_entries").insert({
+      user_id: user.id,
+      season_id: seasonDbId,
+      rank_position: allTime.length + 1,
+    });
+
+    resetShowSelection();
+    await loadAllTime();
+    setSaving(false);
+  }
+
+  async function removeAllTime(id: string) {
+    await supabase.from("all_time_entries").delete().eq("id", id);
+    const remaining = allTime.filter((e) => e.id !== id);
+    for (let i = 0; i < remaining.length; i++) {
+      await supabase
+        .from("all_time_entries")
+        .update({ rank_position: i + 1 })
+        .eq("id", remaining[i].id);
+    }
+    await loadAllTime();
+  }
+
+  // ── Render ────────────────────────────────────────────
+
+  if (authLoading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12 text-center">
+        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12 text-center">
+        <h1 className="text-2xl font-bold mb-4">Sign in required</h1>
+        <Link href="/admin" className="text-amber-500">Go to Admin</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
+      <div className="flex items-center gap-3 mb-2">
+        <Link href="/admin" className="text-gray-500 hover:text-white transition-colors">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </Link>
+        <h1 className="text-3xl md:text-4xl font-black tracking-tighter uppercase">
+          Manage <span className="text-amber-500">Lists</span>
+        </h1>
+      </div>
+      <p className="text-gray-400 text-sm mb-6">
+        Episodes, performances, and all-time rankings.
+      </p>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-white/5 p-1 rounded-xl glass w-fit mb-6">
+        {(["episodes", "performances", "all-time"] as ListTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => { setTab(t); resetShowSelection(); }}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+              tab === t ? "bg-amber-500 text-black" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            {t === "all-time" ? "All-Time" : t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Year selector (not for all-time) */}
+      {tab !== "all-time" && years.length > 0 && (
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {years.map((y) => (
+            <button
+              key={y}
+              onClick={() => setSelectedYear(y)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                selectedYear === y
+                  ? "bg-amber-500 text-black"
+                  : "bg-white/5 text-gray-400 hover:text-white border border-white/10"
+              }`}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Add Section */}
+      <div className="glass rounded-xl border border-white/5 p-6 mb-8">
+        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
+          Add {tab === "episodes" ? "Episode" : tab === "performances" ? "Performance" : "All-Time Entry"}
+        </h2>
+
+        {!selectedShow ? (
+          <ShowSearch onSelect={onShowSelected} />
+        ) : (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <p className="text-sm text-gray-300">
+                Show: <span className="font-bold text-white">{selectedShow.name}</span>
+              </p>
+              <button onClick={resetShowSelection} className="text-xs text-gray-500 hover:text-white">
+                Change
+              </button>
+            </div>
+
+            {/* Episode form */}
+            {tab === "episodes" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    placeholder="Season #"
+                    value={epSeasonNum}
+                    onChange={(e) => setEpSeasonNum(e.target.value)}
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Episode #"
+                    value={epEpisodeNum}
+                    onChange={(e) => setEpEpisodeNum(e.target.value)}
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Episode title"
+                  value={epTitle}
+                  onChange={(e) => setEpTitle(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                />
+                <button
+                  onClick={addEpisode}
+                  disabled={saving || !epSeasonNum || !epEpisodeNum || !epTitle}
+                  className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
+                >
+                  {saving ? "Adding..." : "Add Episode"}
+                </button>
+              </div>
+            )}
+
+            {/* Performance form */}
+            {tab === "performances" && (
+              <div className="space-y-3">
+                {loadingSeasons ? (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                    Loading seasons...
+                  </div>
+                ) : perfSeasonNum === null ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {showSeasons.map((s) => (
+                      <button
+                        key={s.season_number}
+                        onClick={() => setPerfSeasonNum(s.season_number)}
+                        className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left"
+                      >
+                        <p className="font-bold">S{s.season_number}</p>
+                        <p className="text-[10px] text-gray-500">{s.episode_count} eps</p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-500">Season {perfSeasonNum}</p>
+                    <input
+                      type="text"
+                      placeholder="Actor name"
+                      value={actorName}
+                      onChange={(e) => setActorName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Character name (optional)"
+                      value={charName}
+                      onChange={(e) => setCharName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                    />
+                    <button
+                      onClick={addPerformance}
+                      disabled={saving || !actorName}
+                      className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
+                    >
+                      {saving ? "Adding..." : "Add Performance"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* All-Time: pick a season */}
+            {tab === "all-time" && (
+              <div>
+                {loadingSeasons ? (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                    Loading seasons...
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {showSeasons.map((s) => (
+                      <button
+                        key={s.season_number}
+                        onClick={() => addAllTime(s.season_number)}
+                        disabled={saving}
+                        className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left disabled:opacity-30"
+                      >
+                        <p className="font-bold">Season {s.season_number}</p>
+                        <p className="text-[10px] text-gray-500">
+                          {s.episode_count} eps
+                          {s.air_date ? ` · ${new Date(s.air_date).getFullYear()}` : ""}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Current List */}
+      <div className="glass rounded-xl border border-white/5 p-6">
+        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
+          {tab === "episodes" ? `Episodes (${selectedYear})` : tab === "performances" ? `Performances (${selectedYear})` : "All-Time"}
+          {" — "}
+          {tab === "episodes" ? episodes.length : tab === "performances" ? performances.length : allTime.length} entries
+        </h2>
+
+        {/* Episodes list */}
+        {tab === "episodes" && (
+          loadingEpisodes ? (
+            <div className="text-center py-6">
+              <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : episodes.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">No episodes yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {episodes.map((ep) => (
+                <div key={ep.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 group">
+                  <span className="w-6 text-center font-bold text-sm text-gray-500">{ep.rank_position}</span>
+                  <div className="relative w-8 h-12 rounded overflow-hidden shrink-0">
+                    <Image src={ep.poster_url} alt={ep.show_title} fill className="object-cover" sizes="32px" />
+                  </div>
+                  <div className="min-w-0 flex-grow">
+                    <p className="font-bold text-sm truncate">{ep.episode_title}</p>
+                    <p className="text-[11px] text-gray-400">{ep.show_title} S{ep.season_number}E{ep.episode_number}</p>
+                  </div>
+                  <button
+                    onClick={() => removeEpisode(ep.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Performances list */}
+        {tab === "performances" && (
+          loadingPerfs ? (
+            <div className="text-center py-6">
+              <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : performances.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">No performances yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {performances.map((perf) => (
+                <div key={perf.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 group">
+                  <span className="w-6 text-center font-bold text-sm text-gray-500">{perf.rank_position}</span>
+                  <div className="min-w-0 flex-grow">
+                    <p className="font-bold text-sm">{perf.actor_name}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {perf.character_name ? `as ${perf.character_name} · ` : ""}
+                      {perf.show_title} S{perf.season_number}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => removePerformance(perf.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* All-Time list */}
+        {tab === "all-time" && (
+          loadingAllTime ? (
+            <div className="text-center py-6">
+              <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : allTime.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">No all-time entries yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {allTime.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 group">
+                  <span className="w-6 text-center font-bold text-sm text-gray-500">{entry.rank_position}</span>
+                  <div className="relative w-8 h-12 rounded overflow-hidden shrink-0">
+                    <Image src={entry.poster_url} alt={entry.show_title} fill className="object-cover" sizes="32px" />
+                  </div>
+                  <div className="min-w-0 flex-grow">
+                    <p className="font-bold text-sm truncate">{entry.show_title}</p>
+                    <p className="text-[11px] text-gray-400">Season {entry.season_number} · {entry.network}</p>
+                  </div>
+                  <button
+                    onClick={() => removeAllTime(entry.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}

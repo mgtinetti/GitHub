@@ -1,33 +1,94 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { USERS, ALL_TIME_RANKINGS } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase/client";
+import { fetchUsers } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
+import type { User } from "@/types";
 
-interface Props {
-  params: Promise<{ username: string }>;
+interface AllTimeEntry {
+  id: string;
+  rank_position: number;
+  show_title: string;
+  poster_url: string;
+  network: string;
+  genres: string[];
+  season_number: number;
 }
 
-export async function generateMetadata({ params }: Props) {
-  const { username } = await params;
-  const user = USERS.find(
-    (u) => u.display_name.toLowerCase() === username.toLowerCase()
-  );
-  if (!user) return { title: "Not Found" };
-  return {
-    title: `${user.display_name}'s All-Time Rankings`,
-    description: `${user.display_name}'s top TV seasons of all time`,
-  };
-}
+export default function UserAllTimePage() {
+  const params = useParams();
+  const username = params.username as string;
 
-export default async function UserAllTimePage({ params }: Props) {
-  const { username } = await params;
-  const user = USERS.find(
-    (u) => u.display_name.toLowerCase() === username.toLowerCase()
-  );
-  if (!user) notFound();
+  const [user, setUser] = useState<User | null>(null);
+  const [entries, setEntries] = useState<AllTimeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  const entries = ALL_TIME_RANKINGS[user.id] || [];
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      const users = await fetchUsers();
+      const matched = users.find(
+        (u) => u.display_name.toLowerCase() === username.toLowerCase()
+      );
+
+      if (!matched) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      setUser(matched);
+
+      const { data } = await supabase
+        .from("all_time_entries")
+        .select(`
+          id, rank_position,
+          seasons!inner (
+            season_number,
+            shows!inner ( title, poster_url, network, genres )
+          )
+        `)
+        .eq("user_id", matched.id)
+        .order("rank_position", { ascending: true });
+
+      const mapped: AllTimeEntry[] = ((data || []) as any[]).map((row) => ({
+        id: row.id,
+        rank_position: row.rank_position,
+        show_title: row.seasons?.shows?.title || "Unknown",
+        poster_url: row.seasons?.shows?.poster_url || "/placeholder-poster.svg",
+        network: row.seasons?.shows?.network || "Unknown",
+        genres: row.seasons?.shows?.genres || [],
+        season_number: row.seasons?.season_number || 0,
+      }));
+
+      setEntries(mapped);
+      setLoading(false);
+    }
+    loadData();
+  }, [username]);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+        <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-500 text-sm">Loading rankings...</p>
+      </div>
+    );
+  }
+
+  if (notFound || !user) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+        <h1 className="text-3xl font-black mb-4">User Not Found</h1>
+        <Link href="/all-time" className="text-amber-500">Back to All-Time</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
@@ -39,15 +100,21 @@ export default async function UserAllTimePage({ params }: Props) {
           &larr; All Users
         </Link>
         <div className="flex items-center gap-4">
-          <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-amber-500/50">
-            <Image
-              src={user.avatar_url}
-              alt={user.display_name}
-              fill
-              className="object-cover"
-              sizes="56px"
-            />
-          </div>
+          {user.avatar_url ? (
+            <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-amber-500/50">
+              <Image
+                src={user.avatar_url}
+                alt={user.display_name}
+                fill
+                className="object-cover"
+                sizes="56px"
+              />
+            </div>
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-xl border-2 border-amber-500/50">
+              {user.display_name[0]}
+            </div>
+          )}
           <div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase">
               {user.display_name}&apos;s{" "}
@@ -82,8 +149,8 @@ export default async function UserAllTimePage({ params }: Props) {
 
             <div className="relative w-14 h-20 rounded-lg overflow-hidden shrink-0">
               <Image
-                src={entry.show?.poster_url || "/placeholder-poster.svg"}
-                alt={entry.show?.title || ""}
+                src={entry.poster_url}
+                alt={entry.show_title}
                 fill
                 className="object-cover"
                 sizes="56px"
@@ -92,16 +159,15 @@ export default async function UserAllTimePage({ params }: Props) {
 
             <div className="flex-grow min-w-0">
               <h3 className="font-bold text-white text-lg group-hover:text-amber-500 transition-colors truncate">
-                {entry.show?.title}
+                {entry.show_title}
               </h3>
               <p className="text-sm text-gray-400">
-                Season {entry.season?.season_number} &middot;{" "}
-                {entry.show?.network}
+                Season {entry.season_number} &middot; {entry.network}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-1 shrink-0 hidden sm:flex">
-              {entry.show?.genres.map((g) => (
+              {entry.genres.map((g) => (
                 <span
                   key={g}
                   className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400 uppercase"

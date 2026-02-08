@@ -1,29 +1,73 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { YEARS } from "@/lib/constants";
-import { USERS, EPISODE_RANKINGS_2025 } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase/client";
+import { fetchUsers } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
+import type { User } from "@/types";
 
-interface Props {
-  params: Promise<{ year: string }>;
+interface EpisodeEntry {
+  id: string;
+  user_id: string;
+  rank_position: number;
+  show_title: string;
+  poster_url: string;
+  season_number: number;
+  episode_number: number;
+  episode_title: string;
 }
 
-export async function generateMetadata({ params }: Props) {
-  const { year } = await params;
-  return {
-    title: `Best TV Episodes of ${year}`,
-    description: `The best individual episodes of ${year} as ranked by Tinetti, Chubbs & Poteete`,
-  };
-}
+export default function EpisodeRankingsPage() {
+  const params = useParams();
+  const year = parseInt(params.year as string, 10);
 
-export default async function EpisodeRankingsPage({ params }: Props) {
-  const { year: yearStr } = await params;
-  const year = parseInt(yearStr, 10);
-  if (!YEARS.includes(year as (typeof YEARS)[number])) notFound();
+  const [users, setUsers] = useState<User[]>([]);
+  const [rankings, setRankings] = useState<Record<string, EpisodeEntry[]>>({});
+  const [loading, setLoading] = useState(true);
 
-  const episodeRankings =
-    year === 2025 ? EPISODE_RANKINGS_2025 : ({} as Record<string, never[]>);
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      const [usersData, { data: entries }] = await Promise.all([
+        fetchUsers(),
+        supabase
+          .from("episode_ranking_entries")
+          .select(`
+            id, user_id, rank_position, season_number, episode_number, episode_title,
+            shows!inner ( title, poster_url )
+          `)
+          .eq("year", year)
+          .order("rank_position", { ascending: true }),
+      ]);
+
+      setUsers(usersData);
+
+      const grouped: Record<string, EpisodeEntry[]> = {};
+      for (const u of usersData) grouped[u.id] = [];
+
+      for (const row of (entries || []) as any[]) {
+        const entry: EpisodeEntry = {
+          id: row.id,
+          user_id: row.user_id,
+          rank_position: row.rank_position,
+          show_title: row.shows?.title || "Unknown",
+          poster_url: row.shows?.poster_url || "/placeholder-poster.svg",
+          season_number: row.season_number,
+          episode_number: row.episode_number,
+          episode_title: row.episode_title,
+        };
+        if (!grouped[row.user_id]) grouped[row.user_id] = [];
+        grouped[row.user_id].push(entry);
+      }
+
+      setRankings(grouped);
+      setLoading(false);
+    }
+    loadData();
+  }, [year]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
@@ -54,73 +98,85 @@ export default async function EpisodeRankingsPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Side by side episode rankings */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {USERS.map((user) => {
-          const episodes = episodeRankings[user.id] || [];
-          return (
-            <div key={user.id}>
-              <div className="flex items-center gap-3 mb-4 px-1">
-                <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-amber-500/50">
-                  <Image
-                    src={user.avatar_url}
-                    alt={user.display_name}
-                    fill
-                    className="object-cover"
-                    sizes="32px"
-                  />
-                </div>
-                <h2 className="text-lg font-bold">{user.display_name}</h2>
-                <div className="flex-grow h-px bg-white/10" />
-              </div>
-
-              <div className="space-y-2">
-                {episodes.map((ep) => (
-                  <div
-                    key={ep.id}
-                    className="flex items-center gap-3 p-3 rounded-xl glass hover:bg-white/10 transition-all"
-                  >
-                    <div
-                      className={cn(
-                        "w-8 h-8 flex items-center justify-center font-bold text-lg shrink-0",
-                        ep.rank_position <= 3
-                          ? "text-amber-500"
-                          : "text-gray-500"
-                      )}
-                    >
-                      {ep.rank_position}
-                    </div>
-                    <div className="relative w-10 h-14 shrink-0 overflow-hidden rounded-md">
+      {loading ? (
+        <div className="text-center py-20">
+          <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Loading episode rankings...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {users.map((user) => {
+            const episodes = rankings[user.id] || [];
+            return (
+              <div key={user.id}>
+                <div className="flex items-center gap-3 mb-4 px-1">
+                  {user.avatar_url ? (
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-amber-500/50">
                       <Image
-                        src={ep.show?.poster_url || "/placeholder-poster.svg"}
-                        alt={ep.show?.title || ""}
+                        src={user.avatar_url}
+                        alt={user.display_name}
                         fill
                         className="object-cover"
-                        sizes="40px"
+                        sizes="32px"
                       />
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-sm truncate">
-                        {ep.episode_title}
-                      </h4>
-                      <p className="text-[11px] text-gray-400 truncate">
-                        {ep.show?.title} &middot; S{ep.season_number}E
-                        {ep.episode_number}
-                      </p>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-xs border-2 border-amber-500/50">
+                      {user.display_name[0]}
                     </div>
-                  </div>
-                ))}
+                  )}
+                  <h2 className="text-lg font-bold">{user.display_name}</h2>
+                  <div className="flex-grow h-px bg-white/10" />
+                </div>
 
-                {episodes.length === 0 && (
-                  <div className="glass rounded-xl p-6 text-center">
-                    <p className="text-gray-500 text-sm">No episode rankings yet</p>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  {episodes.map((ep) => (
+                    <div
+                      key={ep.id}
+                      className="flex items-center gap-3 p-3 rounded-xl glass hover:bg-white/10 transition-all"
+                    >
+                      <div
+                        className={cn(
+                          "w-8 h-8 flex items-center justify-center font-bold text-lg shrink-0",
+                          ep.rank_position <= 3
+                            ? "text-amber-500"
+                            : "text-gray-500"
+                        )}
+                      >
+                        {ep.rank_position}
+                      </div>
+                      <div className="relative w-10 h-14 shrink-0 overflow-hidden rounded-md">
+                        <Image
+                          src={ep.poster_url}
+                          alt={ep.show_title}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm truncate">
+                          {ep.episode_title}
+                        </h4>
+                        <p className="text-[11px] text-gray-400 truncate">
+                          {ep.show_title} &middot; S{ep.season_number}E
+                          {ep.episode_number}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {episodes.length === 0 && (
+                    <div className="glass rounded-xl p-6 text-center">
+                      <p className="text-gray-500 text-sm">No episode rankings yet</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
