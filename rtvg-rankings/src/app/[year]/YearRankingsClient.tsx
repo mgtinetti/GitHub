@@ -8,7 +8,8 @@ import ConsensusView from "@/components/ranking/ConsensusView";
 import DisagreementsView from "@/components/ranking/DisagreementsView";
 import RankingCard from "@/components/ranking/RankingCard";
 import GenreFilter from "@/components/ranking/GenreFilter";
-import { fetchRankingsForYear } from "@/lib/supabase/queries";
+import { fetchRankingsForYear, fetchActiveYears } from "@/lib/supabase/queries";
+import { YEARS } from "@/lib/constants";
 import { generateConsensusRankings, generateDisagreements } from "@/lib/utils";
 import type { RankingEntry, ConsensusEntry, DisagreementEntry, User } from "@/types";
 
@@ -26,7 +27,17 @@ export default function YearRankingsClient({ year }: Props) {
   const [consensus, setConsensus] = useState<ConsensusEntry[]>([]);
   const [disagreements, setDisagreements] = useState<DisagreementEntry[]>([]);
   const [genres, setGenres] = useState<string[]>([]);
+  const [allYears, setAllYears] = useState<number[]>([...YEARS]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchActiveYears().then((active) => {
+      if (active.length > 0) {
+        const merged = [...new Set([...active, ...YEARS])].sort((a, b) => b - a);
+        setAllYears(merged);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -65,8 +76,25 @@ export default function YearRankingsClient({ year }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
+      {/* Year Switcher */}
+      <div className="flex gap-2 mb-8 flex-wrap">
+        {allYears.map((y) => (
+          <Link
+            key={y}
+            href={`/${y}`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              y === year
+                ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
+                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"
+            }`}
+          >
+            {y}
+          </Link>
+        ))}
+      </div>
+
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6">
         <div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-3 uppercase">
             {year}{" "}
@@ -103,6 +131,43 @@ export default function YearRankingsClient({ year }: Props) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Supplementary Links */}
+      <div className="flex gap-3 mb-10 flex-wrap">
+        <Link
+          href={`/awards/${year}`}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg glass border border-white/5 hover:border-amber-500/20 text-xs font-semibold text-gray-400 hover:text-amber-500 transition-all"
+        >
+          <span>🏆</span> Awards
+        </Link>
+        <Link
+          href={`/episodes/${year}`}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg glass border border-white/5 hover:border-amber-500/20 text-xs font-semibold text-gray-400 hover:text-amber-500 transition-all"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+          </svg>
+          Best Episodes
+        </Link>
+        <Link
+          href={`/performances/${year}`}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg glass border border-white/5 hover:border-amber-500/20 text-xs font-semibold text-gray-400 hover:text-amber-500 transition-all"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          Best Performances
+        </Link>
+        <Link
+          href="/all-time"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg glass border border-white/5 hover:border-amber-500/20 text-xs font-semibold text-gray-400 hover:text-amber-500 transition-all"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+          All-Time
+        </Link>
       </div>
 
       {/* Loading State */}

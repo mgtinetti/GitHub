@@ -11,22 +11,16 @@ export default function Navbar() {
   const pathname = usePathname();
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
   const [years, setYears] = useState<number[]>([...YEARS]);
 
   useEffect(() => {
     fetchActiveYears().then((activeYears) => {
       if (activeYears.length > 0) {
-        // Merge active years with defaults, deduplicate, sort descending
         const merged = [...new Set([...activeYears, ...YEARS])].sort((a, b) => b - a);
         setYears(merged);
       }
     });
   }, []);
-
-  const currentYearFromPath = years.find((y) =>
-    pathname.startsWith(`/${y}`)
-  );
 
   const latestYear = years[0] || 2025;
 
@@ -49,39 +43,27 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
-            {/* Year Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setYearDropdownOpen(!yearDropdownOpen)}
-                onBlur={() => setTimeout(() => setYearDropdownOpen(false), 150)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  currentYearFromPath
-                    ? "text-amber-500"
-                    : "text-gray-400 hover:text-white"
-                }`}
-              >
-                {currentYearFromPath || "Rankings"}{" "}
-                <span className="text-[10px] ml-1">▼</span>
-              </button>
-              {yearDropdownOpen && (
-                <div className="absolute top-full mt-1 left-0 glass-strong rounded-xl py-2 min-w-[120px] shadow-2xl border border-white/10">
-                  {years.map((year) => (
-                    <Link
-                      key={year}
-                      href={`/${year}`}
-                      className={`block px-4 py-2 text-sm font-medium transition-colors ${
-                        currentYearFromPath === year
-                          ? "text-amber-500 bg-amber-500/10"
-                          : "text-gray-400 hover:text-white hover:bg-white/5"
-                      }`}
-                      onClick={() => setYearDropdownOpen(false)}
-                    >
-                      {year}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Link
+              href={`/${latestYear}`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                years.some((y) => pathname.startsWith(`/${y}`))
+                  ? "text-amber-500"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Rankings
+            </Link>
+
+            <Link
+              href="/watching"
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                isActive("/watching")
+                  ? "text-emerald-500"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Watching
+            </Link>
 
             <Link
               href={`/awards/${latestYear}`}
@@ -165,24 +147,20 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {menuOpen && (
         <div className="md:hidden glass-strong border-t border-white/5 px-4 py-4 space-y-1 animate-slide-up">
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-3 mb-2">
-            Rankings by Year
-          </p>
-          {years.map((year) => (
-            <Link
-              key={year}
-              href={`/${year}`}
-              className={`block px-3 py-2 rounded-lg text-sm font-medium ${
-                currentYearFromPath === year
-                  ? "text-amber-500 bg-amber-500/10"
-                  : "text-gray-400 hover:text-white"
-              }`}
-              onClick={() => setMenuOpen(false)}
-            >
-              {year}
-            </Link>
-          ))}
-          <div className="h-px bg-white/5 my-2" />
+          <Link
+            href={`/${latestYear}`}
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+            onClick={() => setMenuOpen(false)}
+          >
+            Rankings
+          </Link>
+          <Link
+            href="/watching"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+            onClick={() => setMenuOpen(false)}
+          >
+            Currently Watching
+          </Link>
           <Link
             href={`/awards/${latestYear}`}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
@@ -190,19 +168,23 @@ export default function Navbar() {
           >
             Awards
           </Link>
+          <div className="h-px bg-white/5 my-2" />
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-3 mb-1">
+            Lists
+          </p>
           <Link
             href={`/episodes/${latestYear}`}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
             onClick={() => setMenuOpen(false)}
           >
-            Episode Rankings
+            Best Episodes
           </Link>
           <Link
             href={`/performances/${latestYear}`}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
             onClick={() => setMenuOpen(false)}
           >
-            Performance Rankings
+            Best Performances
           </Link>
           <Link
             href="/all-time"
@@ -211,6 +193,7 @@ export default function Navbar() {
           >
             All-Time
           </Link>
+          <div className="h-px bg-white/5 my-2" />
           <Link
             href="/blog"
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
