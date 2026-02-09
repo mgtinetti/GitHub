@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchRankingsForYear } from "@/lib/supabase/queries";
+import { fetchRankingsForYear, fetchActiveYears } from "@/lib/supabase/queries";
+import { YEARS } from "@/lib/constants";
 import { generateConsensusRankings } from "@/lib/utils";
 import ConsensusView from "@/components/ranking/ConsensusView";
 import type { ConsensusEntry, User } from "@/types";
@@ -14,7 +15,17 @@ export default function ConsensusPage() {
 
   const [consensus, setConsensus] = useState<ConsensusEntry[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [allYears, setAllYears] = useState<number[]>([...YEARS]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchActiveYears().then((active) => {
+      if (active.length > 0) {
+        const merged = [...new Set([...active, ...YEARS])].sort((a, b) => b - a);
+        setAllYears(merged);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -29,6 +40,23 @@ export default function ConsensusPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
+      {/* Year Switcher */}
+      <div className="flex gap-2 mb-8 flex-wrap">
+        {allYears.map((y) => (
+          <Link
+            key={y}
+            href={`/${y}/consensus`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              y === year
+                ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
+                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"
+            }`}
+          >
+            {y}
+          </Link>
+        ))}
+      </div>
+
       <div className="mb-10">
         <Link
           href={`/${year}`}
