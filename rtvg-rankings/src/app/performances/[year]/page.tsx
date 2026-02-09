@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
-import { fetchUsers } from "@/lib/supabase/queries";
+import { fetchUsers, fetchActiveYears } from "@/lib/supabase/queries";
+import { YEARS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types";
 
@@ -25,7 +26,17 @@ export default function PerformanceRankingsPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [rankings, setRankings] = useState<Record<string, PerformanceEntry[]>>({});
+  const [allYears, setAllYears] = useState<number[]>([...YEARS]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchActiveYears().then((active) => {
+      if (active.length > 0) {
+        const merged = [...new Set([...active, ...YEARS])].sort((a, b) => b - a);
+        setAllYears(merged);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -72,6 +83,29 @@ export default function PerformanceRankingsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
+      {/* Year Switcher */}
+      <div className="flex gap-2 mb-8 flex-wrap">
+        {allYears.map((y) => (
+          <Link
+            key={y}
+            href={`/performances/${y}`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              y === year
+                ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
+                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"
+            }`}
+          >
+            {y}
+          </Link>
+        ))}
+        <Link
+          href="/all-time"
+          className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"
+        >
+          All-Time
+        </Link>
+      </div>
+
       <div className="mb-10">
         <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-xs mb-2 block">
           Supplementary List
@@ -89,12 +123,6 @@ export default function PerformanceRankingsPage() {
             className="text-xs text-gray-500 hover:text-amber-500 transition-colors bg-white/5 px-3 py-1.5 rounded-lg"
           >
             Episode Rankings &rarr;
-          </Link>
-          <Link
-            href="/all-time"
-            className="text-xs text-gray-500 hover:text-amber-500 transition-colors bg-white/5 px-3 py-1.5 rounded-lg"
-          >
-            All-Time &rarr;
           </Link>
         </div>
       </div>
