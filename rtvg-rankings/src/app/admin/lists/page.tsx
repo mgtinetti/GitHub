@@ -127,7 +127,13 @@ export default function ManageListsPage() {
   const [loadingSeasons, setLoadingSeasons] = useState(false);
 
   // Episode form
-  const [epSeasonNum, setEpSeasonNum] = useState("");
+  const [epSeasonNum, setEpSeasonNum] = useState<number | null>(null);
+  const [seasonEpisodes, setSeasonEpisodes] = useState<
+    { episode_number: number; name: string; air_date: string; still_path: string | null }[]
+  >([]);
+  const [loadingSeasonEps, setLoadingSeasonEps] = useState(false);
+  const [epFilter, setEpFilter] = useState("");
+  // Manual fallback fields
   const [epEpisodeNum, setEpEpisodeNum] = useState("");
   const [epTitle, setEpTitle] = useState("");
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
@@ -135,6 +141,12 @@ export default function ManageListsPage() {
 
   // Performance form
   const [perfSeasonNum, setPerfSeasonNum] = useState<number | null>(null);
+  const [showCast, setShowCast] = useState<
+    { id: number; name: string; character: string; profile_path: string | null }[]
+  >([]);
+  const [loadingCast, setLoadingCast] = useState(false);
+  const [castFilter, setCastFilter] = useState("");
+  // Manual fallback fields
   const [actorName, setActorName] = useState("");
   const [charName, setCharName] = useState("");
   const [performances, setPerformances] = useState<PerformanceItem[]>([]);
@@ -163,34 +175,108 @@ export default function ManageListsPage() {
   function resetShowSelection() {
     setSelectedShow(null);
     setShowSeasons([]);
-    setEpSeasonNum("");
+    setEpSeasonNum(null);
+    setSeasonEpisodes([]);
+    setEpFilter("");
     setEpEpisodeNum("");
     setEpTitle("");
     setPerfSeasonNum(null);
+    setShowCast([]);
+    setCastFilter("");
     setActorName("");
     setCharName("");
   }
 
   async function onShowSelected(show: { id: number; name: string; poster_path: string | null }) {
     setSelectedShow(show);
-    if (tab !== "episodes") {
-      setLoadingSeasons(true);
+    setLoadingSeasons(true);
+    try {
+      const res = await fetch(`/api/tmdb/show/${show.id}`);
+      const data = await res.json();
+      setShowSeasons(
+        (data.seasons || [])
+          .filter((s: any) => s.season_number > 0)
+          .map((s: any) => ({
+            season_number: s.season_number,
+            name: s.name,
+            air_date: s.air_date,
+            episode_count: s.episode_count,
+          }))
+      );
+    } catch { setShowSeasons([]); }
+    setLoadingSeasons(false);
+
+    // Pre-fetch cast for performances tab
+    if (tab === "performances") {
+      setLoadingCast(true);
       try {
-        const res = await fetch(`/api/tmdb/show/${show.id}`);
+        const res = await fetch(`/api/tmdb/show/${show.id}/credits`);
         const data = await res.json();
-        setShowSeasons(
-          (data.seasons || [])
-            .filter((s: any) => s.season_number > 0)
-            .map((s: any) => ({
-              season_number: s.season_number,
-              name: s.name,
-              air_date: s.air_date,
-              episode_count: s.episode_count,
-            }))
-        );
-      } catch { setShowSeasons([]); }
-      setLoadingSeasons(false);
+        setShowCast(data.cast || []);
+      } catch { setShowCast([]); }
+      setLoadingCast(false);
     }
+  }
+
+  async function onEpSeasonSelected(seasonNum: number) {
+    setEpSeasonNum(seasonNum);
+    setLoadingSeasonEps(true);
+    try {
+      const res = await fetch(`/api/tmdb/show/${selectedShow!.id}/season/${seasonNum}`);
+      const data = await res.json();
+      setSeasonEpisodes(
+        (data.episodes || []).map((ep: any) => ({
+          episode_number: ep.episode_number,
+          name: ep.name,
+          air_date: ep.air_date || "",
+          still_path: ep.still_path,
+        }))
+      );
+    } catch { setSeasonEpisodes([]); }
+    setLoadingSeasonEps(false);
+  }
+
+  async function addEpisodeFromPicker(episodeNumber: number, episodeTitle: string) {
+    if (!user || !selectedShow || epSeasonNum === null) return;
+    setSaving(true);
+    const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
+    if (!showDbId) { setSaving(false); return; }
+
+    await supabase.from("episode_ranking_entries").insert({
+      user_id: user.id,
+      year: selectedYear,
+      rank_position: episodes.length + 1,
+      show_id: showDbId,
+      season_number: epSeasonNum,
+      episode_number: episodeNumber,
+      episode_title: episodeTitle,
+    });
+
+    resetShowSelection();
+    await loadEpisodes();
+    setSaving(false);
+  }
+
+  async function addPerformanceFromPicker(actName: string, charNameVal: string) {
+    if (!user || !selectedShow || perfSeasonNum === null) return;
+    setSaving(true);
+    const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
+    if (!showDbId) { setSaving(false); return; }
+    const seasonDbId = await ensureSeasonInDb(showDbId, selectedShow.id, perfSeasonNum);
+    if (!seasonDbId) { setSaving(false); return; }
+
+    await supabase.from("performance_ranking_entries").insert({
+      user_id: user.id,
+      year: selectedYear,
+      rank_position: performances.length + 1,
+      actor_name: actName,
+      character_name: charNameVal || null,
+      season_id: seasonDbId,
+    });
+
+    resetShowSelection();
+    await loadPerformances();
+    setSaving(false);
   }
 
   // ── Episodes ──────────────────────────────────────────
@@ -219,8 +305,8 @@ export default function ManageListsPage() {
     setLoadingEpisodes(false);
   }
 
-  async function addEpisode() {
-    if (!user || !selectedShow || !epSeasonNum || !epEpisodeNum || !epTitle) return;
+  async function addEpisodeManual() {
+    if (!user || !selectedShow || epSeasonNum === null || !epEpisodeNum || !epTitle) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
@@ -230,7 +316,7 @@ export default function ManageListsPage() {
       year: selectedYear,
       rank_position: episodes.length + 1,
       show_id: showDbId,
-      season_number: parseInt(epSeasonNum),
+      season_number: epSeasonNum,
       episode_number: parseInt(epEpisodeNum),
       episode_title: epTitle,
     });
@@ -458,36 +544,99 @@ export default function ManageListsPage() {
             {/* Episode form */}
             {tab === "episodes" && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="number"
-                    placeholder="Season #"
-                    value={epSeasonNum}
-                    onChange={(e) => setEpSeasonNum(e.target.value)}
-                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Episode #"
-                    value={epEpisodeNum}
-                    onChange={(e) => setEpEpisodeNum(e.target.value)}
-                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
-                  />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Episode title"
-                  value={epTitle}
-                  onChange={(e) => setEpTitle(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
-                />
-                <button
-                  onClick={addEpisode}
-                  disabled={saving || !epSeasonNum || !epEpisodeNum || !epTitle}
-                  className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
-                >
-                  {saving ? "Adding..." : "Add Episode"}
-                </button>
+                {loadingSeasons ? (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                    Loading seasons...
+                  </div>
+                ) : epSeasonNum === null ? (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Select a season:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {showSeasons.map((s) => (
+                        <button
+                          key={s.season_number}
+                          onClick={() => onEpSeasonSelected(s.season_number)}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left"
+                        >
+                          <p className="font-bold">S{s.season_number}</p>
+                          <p className="text-[10px] text-gray-500">{s.episode_count} eps</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : loadingSeasonEps ? (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                    Loading episodes...
+                  </div>
+                ) : seasonEpisodes.length > 0 ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-500">Season {epSeasonNum} — pick an episode:</p>
+                      <button onClick={() => { setEpSeasonNum(null); setSeasonEpisodes([]); setEpFilter(""); }} className="text-xs text-gray-500 hover:text-white">
+                        Change season
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={epFilter}
+                      onChange={(e) => setEpFilter(e.target.value)}
+                      placeholder="Filter episodes..."
+                      className="w-full mb-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                    />
+                    <div className="max-h-64 overflow-y-auto space-y-1 rounded-lg">
+                      {seasonEpisodes
+                        .filter((ep) => !epFilter || ep.name.toLowerCase().includes(epFilter.toLowerCase()) || String(ep.episode_number).includes(epFilter))
+                        .map((ep) => (
+                        <button
+                          key={ep.episode_number}
+                          onClick={() => addEpisodeFromPicker(ep.episode_number, ep.name)}
+                          disabled={saving}
+                          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/5 text-left transition-colors disabled:opacity-30"
+                        >
+                          <span className="text-xs font-bold text-gray-500 w-6 text-center shrink-0">E{ep.episode_number}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{ep.name}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* Manual fallback when TMDB has no episode data */
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-500">Season {epSeasonNum} — enter episode details manually:</p>
+                      <button onClick={() => { setEpSeasonNum(null); setSeasonEpisodes([]); }} className="text-xs text-gray-500 hover:text-white">
+                        Change season
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <input
+                        type="number"
+                        placeholder="Episode #"
+                        value={epEpisodeNum}
+                        onChange={(e) => setEpEpisodeNum(e.target.value)}
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Episode title"
+                        value={epTitle}
+                        onChange={(e) => setEpTitle(e.target.value)}
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                      />
+                    </div>
+                    <button
+                      onClick={addEpisodeManual}
+                      disabled={saving || !epEpisodeNum || !epTitle}
+                      className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
+                    >
+                      {saving ? "Adding..." : "Add Episode"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -500,43 +649,103 @@ export default function ManageListsPage() {
                     Loading seasons...
                   </div>
                 ) : perfSeasonNum === null ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {showSeasons.map((s) => (
-                      <button
-                        key={s.season_number}
-                        onClick={() => setPerfSeasonNum(s.season_number)}
-                        className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left"
-                      >
-                        <p className="font-bold">S{s.season_number}</p>
-                        <p className="text-[10px] text-gray-500">{s.episode_count} eps</p>
-                      </button>
-                    ))}
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Select a season:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {showSeasons.map((s) => (
+                        <button
+                          key={s.season_number}
+                          onClick={() => setPerfSeasonNum(s.season_number)}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left"
+                        >
+                          <p className="font-bold">S{s.season_number}</p>
+                          <p className="text-[10px] text-gray-500">{s.episode_count} eps</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : (
-                  <>
-                    <p className="text-xs text-gray-500">Season {perfSeasonNum}</p>
-                    <input
-                      type="text"
-                      placeholder="Actor name"
-                      value={actorName}
-                      onChange={(e) => setActorName(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Character name (optional)"
-                      value={charName}
-                      onChange={(e) => setCharName(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
-                    />
-                    <button
-                      onClick={addPerformance}
-                      disabled={saving || !actorName}
-                      className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
-                    >
-                      {saving ? "Adding..." : "Add Performance"}
-                    </button>
-                  </>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-500">Season {perfSeasonNum} — pick a cast member or enter manually:</p>
+                      <button onClick={() => { setPerfSeasonNum(null); setCastFilter(""); }} className="text-xs text-gray-500 hover:text-white">
+                        Change season
+                      </button>
+                    </div>
+
+                    {/* Cast picker from TMDB */}
+                    {loadingCast ? (
+                      <div className="flex items-center gap-2 text-gray-400 text-sm mb-3">
+                        <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                        Loading cast...
+                      </div>
+                    ) : showCast.length > 0 && (
+                      <div className="mb-4">
+                        <input
+                          type="text"
+                          value={castFilter}
+                          onChange={(e) => setCastFilter(e.target.value)}
+                          placeholder="Search cast..."
+                          className="w-full mb-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                        />
+                        <div className="max-h-48 overflow-y-auto space-y-1 rounded-lg">
+                          {showCast
+                            .filter((c) => !castFilter || c.name.toLowerCase().includes(castFilter.toLowerCase()) || c.character.toLowerCase().includes(castFilter.toLowerCase()))
+                            .slice(0, 20)
+                            .map((c) => (
+                            <button
+                              key={`${c.id}-${c.character}`}
+                              onClick={() => addPerformanceFromPicker(c.name, c.character)}
+                              disabled={saving}
+                              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/5 text-left transition-colors disabled:opacity-30"
+                            >
+                              {c.profile_path ? (
+                                <img
+                                  src={`${TMDB_IMAGE_BASE}/w92${c.profile_path}`}
+                                  alt={c.name}
+                                  className="w-8 h-8 rounded-full object-cover shrink-0"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-gray-500 text-xs shrink-0">
+                                  {c.name[0]}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{c.name}</p>
+                                <p className="text-[11px] text-gray-500 truncate">as {c.character}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manual entry fallback */}
+                    <div className="border-t border-white/5 pt-3">
+                      <p className="text-[10px] text-gray-600 uppercase tracking-wider font-bold mb-2">Or enter manually</p>
+                      <input
+                        type="text"
+                        placeholder="Actor name"
+                        value={actorName}
+                        onChange={(e) => setActorName(e.target.value)}
+                        className="w-full mb-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Character name (optional)"
+                        value={charName}
+                        onChange={(e) => setCharName(e.target.value)}
+                        className="w-full mb-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                      />
+                      <button
+                        onClick={addPerformance}
+                        disabled={saving || !actorName}
+                        className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
+                      >
+                        {saving ? "Adding..." : "Add Performance"}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

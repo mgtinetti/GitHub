@@ -351,7 +351,7 @@ export default function HomePage() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             href={`/episodes/${latestYear}`}
             className="glass rounded-2xl p-6 border border-white/5 hover:border-amber-500/20 transition-all group"
@@ -393,28 +393,6 @@ export default function HomePage() {
             </div>
             <p className="text-xs text-gray-400">
               Standout individual acting performances that defined the year.
-            </p>
-          </Link>
-
-          <Link
-            href="/all-time"
-            className="glass rounded-2xl p-6 border border-white/5 hover:border-amber-500/20 transition-all group"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white group-hover:text-amber-500 transition-colors">
-                  All-Time Rankings
-                </h3>
-                <p className="text-[11px] text-gray-500">The best of the best</p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-400">
-              Our all-time favorite TV seasons, spanning every year we&apos;ve ranked.
             </p>
           </Link>
         </div>
