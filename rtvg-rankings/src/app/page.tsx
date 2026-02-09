@@ -84,7 +84,7 @@ export default function HomePage() {
   return (
     <div className="animate-fade-in">
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="relative h-[50vh] md:h-[55vh] flex items-center justify-center overflow-hidden">
+      <section className="relative h-[50vh] md:h-[55vh] flex items-center justify-center overflow-hidden pb-12 md:pb-0">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-b from-bg-surface/30 to-bg-primary" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(245,158,11,0.08)_0%,_transparent_70%)]" />
@@ -121,7 +121,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ QUICK NAVIGATION ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 -mt-4 md:-mt-8 relative z-20">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-6 md:-mt-8 relative z-20">
         <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           <Link
             href={`/${latestYear}`}
