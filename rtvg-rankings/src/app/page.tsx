@@ -84,17 +84,17 @@ export default function HomePage() {
   return (
     <div className="animate-fade-in">
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="relative z-20 py-16 md:py-0 md:h-[55vh] flex items-center justify-center md:overflow-hidden">
+      <section className="relative z-20 md:h-[55vh] flex items-center justify-center md:overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-b from-bg-surface/30 to-bg-primary" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(245,158,11,0.08)_0%,_transparent_70%)]" />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-12 pb-20 md:pt-0 md:pb-0">
           <span className="text-amber-500 font-mono uppercase tracking-[0.5em] text-[10px] md:text-xs mb-4 block animate-fade-in">
             The Definitive Record
           </span>
-          <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-4 uppercase">
+          <h1 className="text-4xl md:text-8xl font-black tracking-tighter mb-3 md:mb-4 uppercase">
             RTVG{" "}
             <span className="text-amber-500">Rankings</span>
           </h1>
@@ -103,16 +103,16 @@ export default function HomePage() {
             Every show watched, scored, and debated.
           </p>
 
-          <div className="flex gap-4 justify-center flex-wrap">
+          <div className="flex gap-3 md:gap-4 justify-center flex-wrap">
             <Link
               href={`/${latestYear}`}
-              className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 py-3 rounded-xl transition-colors shadow-lg shadow-amber-500/20 text-sm"
+              className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 md:px-8 py-3 rounded-xl transition-colors shadow-lg shadow-amber-500/20 text-sm"
             >
               {latestYear} Rankings
             </Link>
             <Link
               href={`/${latestYear}/consensus`}
-              className="bg-white/5 hover:bg-white/10 text-white font-bold px-8 py-3 rounded-xl transition-colors border border-white/10 text-sm"
+              className="bg-white/5 hover:bg-white/10 text-white font-bold px-6 md:px-8 py-3 rounded-xl transition-colors border border-white/10 text-sm"
             >
               Consensus List
             </Link>
@@ -121,7 +121,7 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ QUICK NAVIGATION ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-6 md:-mt-8 relative md:z-20">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-8 md:-mt-8 relative md:z-20">
         <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           <Link
             href={`/${latestYear}`}
