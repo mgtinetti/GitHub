@@ -4,11 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { fetchRankingsForYear, fetchActiveYears, fetchCurrentlyWatching } from "@/lib/supabase/queries";
-import type { CurrentlyWatchingItem } from "@/lib/supabase/queries";
 import { YEARS, PRESET_AWARD_CATEGORIES } from "@/lib/constants";
 import { BLOG_POSTS } from "@/lib/mock-data";
 import { formatDate } from "@/lib/utils";
-import type { RankingEntry, User } from "@/types";
+import type { User } from "@/types";
 
 export default function HomePage() {
   const [years, setYears] = useState<number[]>([...YEARS]);
@@ -16,8 +15,7 @@ export default function HomePage() {
   const [topShows, setTopShows] = useState<{ title: string; poster_url: string; network: string; season_number: number }[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [totalRankings, setTotalRankings] = useState(0);
-  const [watching, setWatching] = useState<Record<string, CurrentlyWatchingItem[]>>({});
-  const [watchingUsers, setWatchingUsers] = useState<User[]>([]);
+  const [watchingCount, setWatchingCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,8 +34,8 @@ export default function HomePage() {
       const latest = merged[0];
       setLatestYear(latest);
 
-      setWatching(watchingData.items);
-      setWatchingUsers(watchingData.users);
+      const count = Object.values(watchingData.items).reduce((sum, items) => sum + items.length, 0);
+      setWatchingCount(count);
 
       const { rankings, users: u } = await fetchRankingsForYear(latest);
       setUsers(u);
@@ -78,8 +76,6 @@ export default function HomePage() {
     loadData();
   }, []);
 
-  const hasWatching = Object.values(watching).some((items) => items.length > 0);
-  const watchingCount = Object.values(watching).reduce((sum, items) => sum + items.length, 0);
   const latestPost = [...BLOG_POSTS].sort(
     (a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
   )[0];
@@ -125,7 +121,7 @@ export default function HomePage() {
 
       {/* ═══════════════ QUICK NAVIGATION ═══════════════ */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 -mt-8 relative z-20">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           <Link
             href={`/${latestYear}`}
             className="glass rounded-2xl p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
@@ -137,6 +133,20 @@ export default function HomePage() {
             </div>
             <h3 className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">Rankings</h3>
             <p className="text-[11px] text-gray-500 mt-0.5">{years.length} years of data</p>
+          </Link>
+
+          <Link
+            href="/watching"
+            className="glass rounded-2xl p-5 border border-white/5 hover:border-emerald-500/30 transition-all group relative"
+          >
+            <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-3 group-hover:bg-emerald-500/20 transition-colors">
+              <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="font-bold text-sm text-white group-hover:text-emerald-500 transition-colors">Watching</h3>
+            <p className="text-[11px] text-gray-500 mt-0.5">{watchingCount > 0 ? `${watchingCount} shows live` : "See what\u2019s on"}</p>
           </Link>
 
           <Link
@@ -179,88 +189,6 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
-
-      {/* ═══════════════ CURRENTLY WATCHING ═══════════════ */}
-      {hasWatching && (
-        <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <div>
-                <span className="text-emerald-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
-                  Live
-                </span>
-                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
-                  Currently <span className="text-amber-500">Watching</span>
-                </h2>
-              </div>
-            </div>
-            <span className="text-[10px] font-mono text-gray-500 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-              {watchingCount} {watchingCount === 1 ? "show" : "shows"}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {watchingUsers.map((user) => {
-              const items = watching[user.id] || [];
-              if (items.length === 0) return null;
-              return (
-                <div key={user.id}>
-                  <div className="flex items-center gap-2 mb-4">
-                    {user.avatar_url ? (
-                      <div className="relative w-7 h-7 rounded-full overflow-hidden border-2 border-amber-500/50">
-                        <Image
-                          src={user.avatar_url}
-                          alt={user.display_name}
-                          fill
-                          className="object-cover"
-                          sizes="28px"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-[10px] border-2 border-amber-500/50">
-                        {user.display_name[0]}
-                      </div>
-                    )}
-                    <span className="text-sm font-bold text-gray-300">{user.display_name}</span>
-                    <div className="flex-grow h-px bg-white/10" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="glass rounded-xl border border-white/5 hover:border-amber-500/20 transition-all group"
-                      >
-                        <div className="relative aspect-[2/3] rounded-t-xl overflow-hidden">
-                          <Image
-                            src={item.show.poster_url || "/placeholder-poster.svg"}
-                            alt={item.show.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-500"
-                            sizes="(max-width: 768px) 30vw, 10vw"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-2">
-                            <p className="text-[10px] text-amber-500/80 font-mono uppercase">
-                              S{item.season_number}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="p-2">
-                          <p className="font-bold text-[11px] truncate group-hover:text-amber-500 transition-colors">
-                            {item.show.title}
-                          </p>
-                          <p className="text-[10px] text-gray-500">{item.show.network}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {/* ═══════════════ FEATURED RANKINGS PREVIEW ═══════════════ */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 mt-16">
