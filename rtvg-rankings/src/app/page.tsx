@@ -84,7 +84,7 @@ export default function HomePage() {
   return (
     <div className="animate-fade-in">
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="relative h-[45vh] md:h-[55vh] flex items-center justify-center overflow-hidden">
+      <section className="relative h-[50vh] md:h-[55vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-b from-bg-surface/30 to-bg-primary" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(245,158,11,0.08)_0%,_transparent_70%)]" />
@@ -98,7 +98,7 @@ export default function HomePage() {
             RTVG{" "}
             <span className="text-amber-500">Rankings</span>
           </h1>
-          <p className="max-w-2xl mx-auto text-gray-400 text-base md:text-xl font-light mb-8">
+          <p className="max-w-2xl mx-auto text-gray-400 text-sm md:text-xl font-light mb-6 md:mb-8">
             TV season rankings by Tinetti, Chubbs &amp; Poteete.
             Every show watched, scored, and debated.
           </p>
@@ -121,90 +121,90 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ QUICK NAVIGATION ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 -mt-8 relative z-20">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 -mt-4 md:-mt-8 relative z-20">
+        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           <Link
             href={`/${latestYear}`}
-            className="glass rounded-2xl p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
+            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
               </svg>
             </div>
-            <h3 className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">Rankings</h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">{years.length} years of data</p>
+            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Rankings</h3>
+            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">{years.length} years of data</p>
           </Link>
 
           <Link
             href="/watching"
-            className="glass rounded-2xl p-5 border border-white/5 hover:border-emerald-500/30 transition-all group relative"
+            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-emerald-500/30 transition-all group relative"
           >
-            <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-3 group-hover:bg-emerald-500/20 transition-colors">
-              <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-emerald-500/20 transition-colors">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="font-bold text-sm text-white group-hover:text-emerald-500 transition-colors">Watching</h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">{watchingCount > 0 ? `${watchingCount} shows live` : "See what\u2019s on"}</p>
+            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-emerald-500 transition-colors">Watching</h3>
+            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">{watchingCount > 0 ? `${watchingCount} shows live` : "See what\u2019s on"}</p>
           </Link>
 
           <Link
             href={`/awards/${latestYear}`}
-            className="glass rounded-2xl p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
+            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
               </svg>
             </div>
-            <h3 className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">Awards</h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">{PRESET_AWARD_CATEGORIES.length} categories</p>
+            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Awards</h3>
+            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">{PRESET_AWARD_CATEGORIES.length} categories</p>
           </Link>
 
           <Link
             href={`/episodes/${latestYear}`}
-            className="glass rounded-2xl p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
+            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <h3 className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">Lists</h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">Episodes, performances & more</p>
+            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Lists</h3>
+            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">Episodes & more</p>
           </Link>
 
           <Link
             href="/blog"
-            className="glass rounded-2xl p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
+            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
               </svg>
             </div>
-            <h3 className="font-bold text-sm text-white group-hover:text-amber-500 transition-colors">Blog</h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">Writeups & discussion</p>
+            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Blog</h3>
+            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">Writeups & discussion</p>
           </Link>
         </div>
       </section>
 
       {/* ═══════════════ FEATURED RANKINGS PREVIEW ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-16">
-        <div className="flex items-center justify-between mb-8">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 md:mb-8">
           <div>
             <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
               Featured
             </span>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
+            <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">
               {latestYear} <span className="text-amber-500">Top Shows</span>
             </h2>
           </div>
           <Link
             href={`/${latestYear}`}
-            className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold"
+            className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold w-fit"
           >
             View All Rankings &rarr;
           </Link>
@@ -216,7 +216,7 @@ export default function HomePage() {
             <p className="text-gray-500 text-sm">Loading rankings...</p>
           </div>
         ) : topShows.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
             {topShows.map((show, i) => (
               <Link
                 key={show.id}
@@ -281,7 +281,7 @@ export default function HomePage() {
         )}
 
         {/* Sub-links */}
-        <div className="flex gap-3 mt-4">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-4">
           <Link
             href={`/${latestYear}/consensus`}
             className="text-xs text-gray-500 hover:text-amber-500 transition-colors"
@@ -304,35 +304,35 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ AWARDS PREVIEW ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-16">
-        <div className="flex items-center justify-between mb-6">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
           <div>
             <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
               Year-End Superlatives
             </span>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
+            <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">
               {latestYear} <span className="text-amber-500">Awards</span>
             </h2>
           </div>
           <Link
             href={`/awards/${latestYear}`}
-            className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold"
+            className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold w-fit"
           >
             All Awards &rarr;
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
           {PRESET_AWARD_CATEGORIES.slice(0, 5).map((category) => (
             <Link
               key={category}
               href={`/awards/${latestYear}`}
-              className="glass rounded-xl p-4 border border-white/5 hover:border-amber-500/20 transition-all group text-center"
+              className="glass rounded-xl p-3 sm:p-4 border border-white/5 hover:border-amber-500/20 transition-all group text-center"
             >
-              <span className="text-2xl mb-2 block">
+              <span className="text-xl sm:text-2xl mb-1 sm:mb-2 block">
                 {category.includes("Disappointing") || category.includes("Overrated") ? "😬" : "🏆"}
               </span>
-              <h4 className="text-xs font-bold text-white group-hover:text-amber-500 transition-colors leading-tight">
+              <h4 className="text-[10px] sm:text-xs font-bold text-white group-hover:text-amber-500 transition-colors leading-tight">
                 {category}
               </h4>
             </Link>
@@ -341,16 +341,14 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════ LISTS PREVIEW ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-16">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
-              Supplementary
-            </span>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
-              More <span className="text-amber-500">Lists</span>
-            </h2>
-          </div>
+      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
+        <div className="mb-6">
+          <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
+            Supplementary
+          </span>
+          <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">
+            More <span className="text-amber-500">Lists</span>
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -424,19 +422,19 @@ export default function HomePage() {
 
       {/* ═══════════════ BLOG PREVIEW ═══════════════ */}
       {latestPost && (
-        <section className="max-w-7xl mx-auto px-4 md:px-8 mt-16">
-          <div className="flex items-center justify-between mb-6">
+        <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
             <div>
               <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
                 From the Blog
               </span>
-              <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
+              <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">
                 Latest <span className="text-amber-500">Post</span>
               </h2>
             </div>
             <Link
               href="/blog"
-              className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold"
+              className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold w-fit"
             >
               All Posts &rarr;
             </Link>
@@ -479,14 +477,14 @@ export default function HomePage() {
       )}
 
       {/* ═══════════════ ABOUT RTVG ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-16 mb-16">
-        <div className="glass rounded-2xl border border-white/5 p-8 md:p-12">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16 mb-12 md:mb-16">
+        <div className="glass rounded-2xl border border-white/5 p-5 sm:p-8 md:p-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div>
               <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-2">
                 About
               </span>
-              <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-4">
+              <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight mb-4">
                 What is <span className="text-amber-500">RTVG</span>?
               </h2>
               <p className="text-gray-400 text-sm leading-relaxed mb-4">
