@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { REWATCH_ICONS } from "@/lib/constants";
@@ -20,7 +21,8 @@ export default function RankingCard({
 
   if (compact) {
     return (
-      <div
+      <Link
+        href={`/show/${show.id}`}
         className={cn(
           "flex items-center gap-3 p-2.5 rounded-xl glass hover:bg-white/10 transition-all cursor-pointer group",
           highlighted && "ring-2 ring-amber-500 bg-amber-500/5"
@@ -56,14 +58,15 @@ export default function RankingCard({
             {entry.score}
           </span>
         )}
-      </div>
+      </Link>
     );
   }
 
   return (
-    <div
+    <Link
+      href={`/show/${show.id}`}
       className={cn(
-        "relative overflow-hidden group rounded-2xl glass p-4 hover:shadow-2xl hover:shadow-amber-500/5 transition-all border border-white/5 hover:border-amber-500/20",
+        "relative overflow-hidden group rounded-2xl glass p-4 hover:shadow-2xl hover:shadow-amber-500/5 transition-all border border-white/5 hover:border-amber-500/20 block",
         highlighted && "ring-1 ring-amber-500/50"
       )}
     >
@@ -147,6 +150,6 @@ export default function RankingCard({
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

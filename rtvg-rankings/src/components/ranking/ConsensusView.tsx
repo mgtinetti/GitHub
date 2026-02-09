@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { ConsensusEntry, User } from "@/types";
@@ -21,10 +22,11 @@ export default function ConsensusView({ entries, users }: ConsensusViewProps) {
   return (
     <div className="space-y-3">
       {entries.map((entry) => (
-        <div
+        <Link
+          href={`/show/${entry.show.id}`}
           key={`${entry.show.id}-${entry.season.id}`}
           className={cn(
-            "glass rounded-2xl p-4 border border-white/5 hover:border-amber-500/20 transition-all group",
+            "glass rounded-2xl p-4 border border-white/5 hover:border-amber-500/20 transition-all group block",
             entry.consensus_position <= 3 && "accent-glow"
           )}
         >
@@ -98,7 +100,7 @@ export default function ConsensusView({ entries, users }: ConsensusViewProps) {
               );
             })}
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );

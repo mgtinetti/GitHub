@@ -12,7 +12,7 @@ import type { User } from "@/types";
 export default function HomePage() {
   const [years, setYears] = useState<number[]>([...YEARS]);
   const [latestYear, setLatestYear] = useState<number>(YEARS[0]);
-  const [topShows, setTopShows] = useState<{ title: string; poster_url: string; network: string; season_number: number }[]>([]);
+  const [topShows, setTopShows] = useState<{ id: string; title: string; poster_url: string; network: string; season_number: number }[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [totalRankings, setTotalRankings] = useState(0);
   const [watchingCount, setWatchingCount] = useState(0);
@@ -44,7 +44,7 @@ export default function HomePage() {
       setTotalRankings(total);
 
       // Build consensus top shows (aggregate across all users)
-      const showMap = new Map<string, { title: string; poster_url: string; network: string; season_number: number; totalRank: number; count: number }>();
+      const showMap = new Map<string, { id: string; title: string; poster_url: string; network: string; season_number: number; totalRank: number; count: number }>();
       for (const entries of Object.values(rankings)) {
         for (const entry of entries) {
           if (!entry.show || !entry.season) continue;
@@ -55,6 +55,7 @@ export default function HomePage() {
             existing.count++;
           } else {
             showMap.set(key, {
+              id: entry.show.id,
               title: entry.show.title,
               poster_url: entry.show.poster_url,
               network: entry.show.network,
@@ -218,8 +219,8 @@ export default function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
             {topShows.map((show, i) => (
               <Link
-                key={show.title}
-                href={`/${latestYear}`}
+                key={show.id}
+                href={`/show/${show.id}`}
                 className="group"
               >
                 <div className="relative aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/5 group-hover:border-amber-500/30 transition-all">

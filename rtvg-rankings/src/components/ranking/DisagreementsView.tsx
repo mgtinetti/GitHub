@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import type { DisagreementEntry, User } from "@/types";
 
@@ -20,10 +21,11 @@ export default function DisagreementsView({
 
   return (
     <div className="space-y-4">
-      {entries.slice(0, 20).map((entry, i) => (
-        <div
+      {entries.slice(0, 20).map((entry) => (
+        <Link
+          href={`/show/${entry.show.id}`}
           key={`${entry.show.id}-${entry.season.id}`}
-          className="glass rounded-2xl p-4 border border-white/5 hover:border-red-500/20 transition-all group"
+          className="glass rounded-2xl p-4 border border-white/5 hover:border-red-500/20 transition-all group block"
         >
           <div className="flex items-center gap-4">
             {/* Spread Badge */}
@@ -97,7 +99,7 @@ export default function DisagreementsView({
               );
             })}
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );
