@@ -183,71 +183,81 @@ export default function HomePage() {
       {/* ═══════════════ CURRENTLY WATCHING ═══════════════ */}
       {hasWatching && (
         <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12">
-          <div className="glass rounded-2xl border border-white/5 p-6 md:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <h2 className="text-lg font-bold uppercase tracking-tight">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div>
+                <span className="text-emerald-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
+                  Live
+                </span>
+                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
                   Currently <span className="text-amber-500">Watching</span>
                 </h2>
-                <span className="text-[10px] font-mono text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
-                  {watchingCount} {watchingCount === 1 ? "show" : "shows"}
-                </span>
               </div>
             </div>
+            <span className="text-[10px] font-mono text-gray-500 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+              {watchingCount} {watchingCount === 1 ? "show" : "shows"}
+            </span>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {watchingUsers.map((user) => {
-                const items = watching[user.id] || [];
-                if (items.length === 0) return null;
-                return (
-                  <div key={user.id}>
-                    <div className="flex items-center gap-2 mb-3">
-                      {user.avatar_url ? (
-                        <div className="relative w-6 h-6 rounded-full overflow-hidden border border-amber-500/50">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {watchingUsers.map((user) => {
+              const items = watching[user.id] || [];
+              if (items.length === 0) return null;
+              return (
+                <div key={user.id}>
+                  <div className="flex items-center gap-2 mb-4">
+                    {user.avatar_url ? (
+                      <div className="relative w-7 h-7 rounded-full overflow-hidden border-2 border-amber-500/50">
+                        <Image
+                          src={user.avatar_url}
+                          alt={user.display_name}
+                          fill
+                          className="object-cover"
+                          sizes="28px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-[10px] border-2 border-amber-500/50">
+                        {user.display_name[0]}
+                      </div>
+                    )}
+                    <span className="text-sm font-bold text-gray-300">{user.display_name}</span>
+                    <div className="flex-grow h-px bg-white/10" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="glass rounded-xl border border-white/5 hover:border-amber-500/20 transition-all group"
+                      >
+                        <div className="relative aspect-[2/3] rounded-t-xl overflow-hidden">
                           <Image
-                            src={user.avatar_url}
-                            alt={user.display_name}
+                            src={item.show.poster_url || "/placeholder-poster.svg"}
+                            alt={item.show.title}
                             fill
-                            className="object-cover"
-                            sizes="24px"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            sizes="(max-width: 768px) 30vw, 10vw"
                           />
-                        </div>
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-[10px] border border-amber-500/50">
-                          {user.display_name[0]}
-                        </div>
-                      )}
-                      <span className="text-sm font-semibold text-gray-300">{user.display_name}</span>
-                    </div>
-                    <div className="space-y-2">
-                      {items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
-                        >
-                          <div className="relative w-8 h-12 rounded-md overflow-hidden shrink-0">
-                            <Image
-                              src={item.show.poster_url || "/placeholder-poster.svg"}
-                              alt={item.show.title}
-                              fill
-                              className="object-cover"
-                              sizes="32px"
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-xs truncate">{item.show.title}</p>
-                            <p className="text-[10px] text-gray-500">
-                              S{item.season_number} &middot; {item.show.network}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-2">
+                            <p className="text-[10px] text-amber-500/80 font-mono uppercase">
+                              S{item.season_number}
                             </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <div className="p-2">
+                          <p className="font-bold text-[11px] truncate group-hover:text-amber-500 transition-colors">
+                            {item.show.title}
+                          </p>
+                          <p className="text-[10px] text-gray-500">{item.show.network}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
