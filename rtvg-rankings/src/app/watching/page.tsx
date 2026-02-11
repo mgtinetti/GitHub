@@ -10,11 +10,13 @@ export default function WatchingPage() {
   const [watching, setWatching] = useState<Record<string, CurrentlyWatchingItem[]>>({});
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("");
 
   useEffect(() => {
     fetchCurrentlyWatching().then(({ items, users: u }) => {
       setWatching(items);
       setUsers(u);
+      if (u.length > 0) setActiveTab(u[0].id);
       setLoading(false);
     });
   }, []);
@@ -45,12 +47,33 @@ export default function WatchingPage() {
           <p className="text-gray-500 text-lg">Nobody is watching anything right now.</p>
         </div>
       ) : (
+        <>
+        {/* Mobile user tabs */}
+        <div className="flex md:hidden mb-6 bg-white/5 p-1 rounded-xl glass">
+          {users.filter((u) => (watching[u.id] || []).length > 0).map((user) => (
+            <button
+              key={user.id}
+              onClick={() => setActiveTab(user.id)}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                activeTab === user.id
+                  ? "bg-amber-500 text-black shadow-lg"
+                  : "text-gray-400"
+              }`}
+            >
+              {user.display_name}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {users.map((user) => {
             const items = watching[user.id] || [];
             if (items.length === 0) return null;
             return (
-              <div key={user.id}>
+              <div
+                key={user.id}
+                className={activeTab === user.id ? "block" : "hidden md:block"}
+              >
                 <div className="flex items-center gap-3 mb-5">
                   {user.avatar_url ? (
                     <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-amber-500/50">
@@ -109,6 +132,7 @@ export default function WatchingPage() {
             );
           })}
         </div>
+        </>
       )}
     </div>
   );
