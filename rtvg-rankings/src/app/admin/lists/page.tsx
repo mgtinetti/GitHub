@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
 import { fetchActiveYears } from "@/lib/supabase/queries";
@@ -338,16 +339,19 @@ export default function ManageListsPage() {
     await loadEpisodes();
   }
 
-  async function moveEpisode(index: number, direction: "up" | "down") {
-    const swapIndex = direction === "up" ? index - 1 : index + 1;
-    if (swapIndex < 0 || swapIndex >= episodes.length) return;
-    const a = episodes[index];
-    const b = episodes[swapIndex];
-    await Promise.all([
-      supabase.from("episode_ranking_entries").update({ rank_position: b.rank_position }).eq("id", a.id),
-      supabase.from("episode_ranking_entries").update({ rank_position: a.rank_position }).eq("id", b.id),
-    ]);
-    await loadEpisodes();
+  async function handleEpisodeDragEnd(result: DropResult) {
+    if (!result.destination) return;
+    const items = Array.from(episodes);
+    const [reordered] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reordered);
+    // Optimistic update
+    setEpisodes(items.map((ep, i) => ({ ...ep, rank_position: i + 1 })));
+    // Persist new positions
+    await Promise.all(
+      items.map((ep, i) =>
+        supabase.from("episode_ranking_entries").update({ rank_position: i + 1 }).eq("id", ep.id)
+      )
+    );
   }
 
   // ── Performances ──────────────────────────────────────
@@ -822,36 +826,57 @@ export default function ManageListsPage() {
           ) : episodes.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-6">No episodes yet.</p>
           ) : (
-            <div className="space-y-2">
-              {episodes.map((ep, i) => (
-                <div key={ep.id} className="flex items-center gap-2 p-3 rounded-lg bg-white/5 group">
-                  <div className="flex flex-col shrink-0">
-                    <button onClick={() => moveEpisode(i, "up")} disabled={i === 0} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
-                    </button>
-                    <button onClick={() => moveEpisode(i, "down")} disabled={i === episodes.length - 1} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                    </button>
+            <DragDropContext onDragEnd={handleEpisodeDragEnd}>
+              <Droppable droppableId="episodes">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                    {episodes.map((ep, i) => (
+                      <Draggable key={ep.id} draggableId={ep.id} index={i}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`flex items-center gap-2 p-3 rounded-lg group transition-all ${
+                              snapshot.isDragging
+                                ? "bg-amber-500/10 border border-amber-500/50 shadow-2xl shadow-amber-500/10 scale-[1.02]"
+                                : "bg-white/5 border border-transparent"
+                            }`}
+                          >
+                            <div
+                              {...provided.dragHandleProps}
+                              className="flex flex-col items-center gap-1 shrink-0 cursor-grab active:cursor-grabbing"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm8-16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
+                              </svg>
+                              <span className={`text-sm font-black ${i < 3 ? "text-amber-500" : "text-gray-500"}`}>
+                                {i + 1}
+                              </span>
+                            </div>
+                            <div className="relative w-8 h-12 rounded overflow-hidden shrink-0">
+                              <Image src={ep.poster_url} alt={ep.show_title} fill className="object-cover" sizes="32px" />
+                            </div>
+                            <div className="min-w-0 flex-grow">
+                              <p className="font-bold text-sm truncate">{ep.episode_title}</p>
+                              <p className="text-[11px] text-gray-400">{ep.show_title} S{ep.season_number}E{ep.episode_number}</p>
+                            </div>
+                            <button
+                              onClick={() => removeEpisode(ep.id)}
+                              className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0 p-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
                   </div>
-                  <span className="w-6 text-center font-bold text-sm text-gray-500">{ep.rank_position}</span>
-                  <div className="relative w-8 h-12 rounded overflow-hidden shrink-0">
-                    <Image src={ep.poster_url} alt={ep.show_title} fill className="object-cover" sizes="32px" />
-                  </div>
-                  <div className="min-w-0 flex-grow">
-                    <p className="font-bold text-sm truncate">{ep.episode_title}</p>
-                    <p className="text-[11px] text-gray-400">{ep.show_title} S{ep.season_number}E{ep.episode_number}</p>
-                  </div>
-                  <button
-                    onClick={() => removeEpisode(ep.id)}
-                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )
         )}
 
