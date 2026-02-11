@@ -14,6 +14,8 @@ interface WatchingEntry {
   poster_url: string | null;
   network: string;
   season_number: number;
+  sort_order: number;
+  tmdb_id: number | null;
 }
 
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
@@ -50,15 +52,17 @@ export default function ManageWatchingPage() {
         id,
         show_id,
         season_number,
+        sort_order,
         shows!inner (
           title,
           poster_url,
-          network
+          network,
+          tmdb_id
         )
       `
       )
       .eq("user_id", user.id)
-      .order("added_at", { ascending: false });
+      .order("sort_order", { ascending: true });
 
     if (!error && data) {
       setEntries(
@@ -69,6 +73,8 @@ export default function ManageWatchingPage() {
           poster_url: row.shows.poster_url,
           network: row.shows.network || "Unknown",
           season_number: row.season_number,
+          sort_order: row.sort_order || 0,
+          tmdb_id: row.shows.tmdb_id || null,
         }))
       );
     }
@@ -145,14 +151,22 @@ export default function ManageWatchingPage() {
       showDbId = newShow.id;
     }
 
-    // Insert currently watching entry
+    // Insert currently watching entry at top of list
     const { error } = await supabase.from("currently_watching").insert({
       user_id: user.id,
       show_id: showDbId,
       season_number: seasonNumber,
+      sort_order: 0,
     });
 
     if (!error) {
+      // Bump all existing entries' sort_order by 1
+      for (const entry of entries) {
+        await supabase
+          .from("currently_watching")
+          .update({ sort_order: entry.sort_order + 1 })
+          .eq("id", entry.id);
+      }
       setSelectedShow(null);
       setShowSeasons([]);
       await loadEntries();
@@ -162,7 +176,42 @@ export default function ManageWatchingPage() {
 
   async function removeEntry(id: string) {
     await supabase.from("currently_watching").delete().eq("id", id);
-    setEntries((prev) => prev.filter((e) => e.id !== id));
+    const remaining = entries.filter((e) => e.id !== id);
+    // Re-number sort_order
+    for (let i = 0; i < remaining.length; i++) {
+      await supabase
+        .from("currently_watching")
+        .update({ sort_order: i + 1 })
+        .eq("id", remaining[i].id);
+    }
+    await loadEntries();
+  }
+
+  async function moveEntry(index: number, direction: "up" | "down") {
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= entries.length) return;
+    const a = entries[index];
+    const b = entries[swapIndex];
+    await Promise.all([
+      supabase.from("currently_watching").update({ sort_order: b.sort_order }).eq("id", a.id),
+      supabase.from("currently_watching").update({ sort_order: a.sort_order }).eq("id", b.id),
+    ]);
+    await loadEntries();
+  }
+
+  async function moveToRankings(entry: WatchingEntry) {
+    // Remove from currently watching
+    await supabase.from("currently_watching").delete().eq("id", entry.id);
+    // Re-number remaining
+    const remaining = entries.filter((e) => e.id !== entry.id);
+    for (let i = 0; i < remaining.length; i++) {
+      await supabase
+        .from("currently_watching")
+        .update({ sort_order: i + 1 })
+        .eq("id", remaining[i].id);
+    }
+    // Navigate to rankings page
+    window.location.href = "/admin/rankings";
   }
 
   if (authLoading) {
@@ -294,11 +343,19 @@ export default function ManageWatchingPage() {
           </p>
         ) : (
           <div className="space-y-2">
-            {entries.map((entry) => (
+            {entries.map((entry, i) => (
               <div
                 key={entry.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-white/5 group"
+                className="flex items-center gap-2 p-3 rounded-lg bg-white/5 group"
               >
+                <div className="flex flex-col shrink-0">
+                  <button onClick={() => moveEntry(i, "up")} disabled={i === 0} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <button onClick={() => moveEntry(i, "down")} disabled={i === entries.length - 1} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                </div>
                 <div className="relative w-10 h-14 rounded-lg overflow-hidden shrink-0">
                   <Image
                     src={entry.poster_url || "/placeholder-poster.svg"}
@@ -314,25 +371,24 @@ export default function ManageWatchingPage() {
                     Season {entry.season_number} &middot; {entry.network}
                   </p>
                 </div>
-                <button
-                  onClick={() => removeEntry(entry.id)}
-                  className="text-gray-600 hover:text-red-400 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
-                  title="Remove"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => moveToRankings(entry)}
+                    className="text-gray-600 hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/10"
+                    title="Finished — move to rankings"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
+                    Rank It
+                  </button>
+                  <button
+                    onClick={() => removeEntry(entry.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                    title="Remove"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>

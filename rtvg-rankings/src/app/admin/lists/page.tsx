@@ -328,7 +328,6 @@ export default function ManageListsPage() {
 
   async function removeEpisode(id: string) {
     await supabase.from("episode_ranking_entries").delete().eq("id", id);
-    // Re-rank remaining
     const remaining = episodes.filter((e) => e.id !== id);
     for (let i = 0; i < remaining.length; i++) {
       await supabase
@@ -336,6 +335,18 @@ export default function ManageListsPage() {
         .update({ rank_position: i + 1 })
         .eq("id", remaining[i].id);
     }
+    await loadEpisodes();
+  }
+
+  async function moveEpisode(index: number, direction: "up" | "down") {
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= episodes.length) return;
+    const a = episodes[index];
+    const b = episodes[swapIndex];
+    await Promise.all([
+      supabase.from("episode_ranking_entries").update({ rank_position: b.rank_position }).eq("id", a.id),
+      supabase.from("episode_ranking_entries").update({ rank_position: a.rank_position }).eq("id", b.id),
+    ]);
     await loadEpisodes();
   }
 
@@ -395,6 +406,18 @@ export default function ManageListsPage() {
         .update({ rank_position: i + 1 })
         .eq("id", remaining[i].id);
     }
+    await loadPerformances();
+  }
+
+  async function movePerformance(index: number, direction: "up" | "down") {
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= performances.length) return;
+    const a = performances[index];
+    const b = performances[swapIndex];
+    await Promise.all([
+      supabase.from("performance_ranking_entries").update({ rank_position: b.rank_position }).eq("id", a.id),
+      supabase.from("performance_ranking_entries").update({ rank_position: a.rank_position }).eq("id", b.id),
+    ]);
     await loadPerformances();
   }
 
@@ -800,8 +823,16 @@ export default function ManageListsPage() {
             <p className="text-gray-500 text-sm text-center py-6">No episodes yet.</p>
           ) : (
             <div className="space-y-2">
-              {episodes.map((ep) => (
-                <div key={ep.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 group">
+              {episodes.map((ep, i) => (
+                <div key={ep.id} className="flex items-center gap-2 p-3 rounded-lg bg-white/5 group">
+                  <div className="flex flex-col shrink-0">
+                    <button onClick={() => moveEpisode(i, "up")} disabled={i === 0} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button onClick={() => moveEpisode(i, "down")} disabled={i === episodes.length - 1} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                  </div>
                   <span className="w-6 text-center font-bold text-sm text-gray-500">{ep.rank_position}</span>
                   <div className="relative w-8 h-12 rounded overflow-hidden shrink-0">
                     <Image src={ep.poster_url} alt={ep.show_title} fill className="object-cover" sizes="32px" />
@@ -812,7 +843,7 @@ export default function ManageListsPage() {
                   </div>
                   <button
                     onClick={() => removeEpisode(ep.id)}
-                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -834,8 +865,16 @@ export default function ManageListsPage() {
             <p className="text-gray-500 text-sm text-center py-6">No performances yet.</p>
           ) : (
             <div className="space-y-2">
-              {performances.map((perf) => (
-                <div key={perf.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 group">
+              {performances.map((perf, i) => (
+                <div key={perf.id} className="flex items-center gap-2 p-3 rounded-lg bg-white/5 group">
+                  <div className="flex flex-col shrink-0">
+                    <button onClick={() => movePerformance(i, "up")} disabled={i === 0} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button onClick={() => movePerformance(i, "down")} disabled={i === performances.length - 1} className="text-gray-600 hover:text-white disabled:opacity-20 p-0.5">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                  </div>
                   <span className="w-6 text-center font-bold text-sm text-gray-500">{perf.rank_position}</span>
                   <div className="min-w-0 flex-grow">
                     <p className="font-bold text-sm">{perf.actor_name}</p>
@@ -846,7 +885,7 @@ export default function ManageListsPage() {
                   </div>
                   <button
                     onClick={() => removePerformance(perf.id)}
-                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
