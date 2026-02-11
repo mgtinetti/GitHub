@@ -111,10 +111,10 @@ export default function HomePage() {
               {latestYear} Rankings
             </Link>
             <Link
-              href={`/${latestYear}/consensus`}
+              href="/watching"
               className="bg-white/5 hover:bg-white/10 text-white font-bold px-6 md:px-8 py-3 rounded-xl transition-colors border border-white/10 text-sm"
             >
-              Consensus List
+              Currently Watching
             </Link>
           </div>
         </div>
