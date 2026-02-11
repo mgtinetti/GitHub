@@ -3,7 +3,7 @@ export const SITE_DESCRIPTION =
   "The definitive record of our television journey — TV season rankings by Tinetti, Chubbs & Poteete.";
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://rtvgrankings.com";
 
-export const YEARS = [2025, 2024, 2023, 2022, 2021] as const;
+export const YEARS = [2026, 2025, 2024, 2023, 2022, 2021] as const;
 export const CURRENT_YEAR = new Date().getFullYear();
 
 export const REWATCH_LABELS: Record<string, string> = {

@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function AwardsPage({ params }: Props) {
   const { year: yearStr } = await params;
   const year = parseInt(yearStr, 10);
-  if (!YEARS.includes(year as (typeof YEARS)[number])) notFound();
+  if (isNaN(year) || year < 2000 || year > 2100) notFound();
 
   const categories = AWARD_CATEGORIES.filter((c) => c.year === year);
 
