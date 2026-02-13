@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { YEARS } from "@/lib/constants";
 import { USERS, AWARD_CATEGORIES, AWARD_PICKS } from "@/lib/mock-data";
@@ -32,10 +33,27 @@ export default async function AwardsPage({ params }: Props) {
         <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-4 italic uppercase">
           {year} <span className="text-amber-500">Awards</span>
         </h1>
-        <p className="text-gray-400 max-w-xl mx-auto">
+        <p className="text-gray-400 max-w-xl mx-auto mb-6">
           Our personal TV awards ceremony. Votes cast, arguments had, and group
           winners declared.
         </p>
+
+        {/* Year selector */}
+        <div className="flex gap-2 justify-center flex-wrap">
+          {YEARS.map((y) => (
+            <Link
+              key={y}
+              href={`/awards/${y}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                y === year
+                  ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
+                  : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10"
+              }`}
+            >
+              {y}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Award Cards Grid */}
