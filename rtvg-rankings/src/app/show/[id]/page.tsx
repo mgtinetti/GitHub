@@ -24,6 +24,7 @@ interface TMDBDetails {
   first_air_date?: string;
   vote_average?: number;
   number_of_seasons?: number;
+  episode_run_time?: number[];
   homepage?: string;
   networks?: { name: string }[];
 }
@@ -123,6 +124,7 @@ export default function ShowDetailPage() {
             first_air_date: tmdb.first_air_date,
             vote_average: tmdb.vote_average,
             number_of_seasons: tmdb.number_of_seasons,
+            episode_run_time: tmdb.episode_run_time,
             homepage: tmdb.homepage,
             networks: tmdb.networks,
           });
@@ -217,6 +219,14 @@ export default function ShowDetailPage() {
                 <span className="text-gray-600">&middot;</span>
                 <span className="text-sm text-gray-400">
                   Since {new Date(tmdbDetails.first_air_date).getFullYear()}
+                </span>
+              </>
+            )}
+            {tmdbDetails?.episode_run_time && tmdbDetails.episode_run_time.length > 0 && (
+              <>
+                <span className="text-gray-600">&middot;</span>
+                <span className="text-sm text-gray-400">
+                  ~{Math.round(tmdbDetails.episode_run_time.reduce((a, b) => a + b, 0) / tmdbDetails.episode_run_time.length)} min/ep
                 </span>
               </>
             )}
