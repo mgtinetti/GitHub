@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { fetchCurrentlyWatching } from "@/lib/supabase/queries";
 import type { CurrentlyWatchingItem } from "@/lib/supabase/queries";
@@ -100,8 +101,9 @@ export default function WatchingPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {items.map((item) => (
-                    <div
+                    <Link
                       key={item.id}
+                      href={`/show/${item.show.id}`}
                       className="glass rounded-xl border border-white/5 hover:border-amber-500/20 transition-all group"
                     >
                       <div className="relative aspect-[2/3] rounded-t-xl overflow-hidden">
@@ -125,7 +127,7 @@ export default function WatchingPage() {
                         </p>
                         <p className="text-[11px] text-gray-500">{item.show.network}</p>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

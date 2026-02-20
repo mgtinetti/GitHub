@@ -36,6 +36,11 @@ export async function getShowDetails(tmdbId: number) {
     id: number;
     name: string;
     poster_path: string | null;
+    overview?: string;
+    first_air_date?: string;
+    vote_average?: number;
+    homepage?: string;
+    episode_run_time?: number[];
     genres: { id: number; name: string }[];
     networks: { id: number; name: string }[];
     status: string;
@@ -48,6 +53,7 @@ export async function getShowDetails(tmdbId: number) {
       episode_count: number;
       poster_path: string | null;
     }[];
+    last_episode_to_air?: { runtime?: number } | null;
   }>(`/tv/${tmdbId}`);
 }
 

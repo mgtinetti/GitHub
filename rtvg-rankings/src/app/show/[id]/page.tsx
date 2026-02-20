@@ -25,6 +25,7 @@ interface TMDBDetails {
   vote_average?: number;
   number_of_seasons?: number;
   episode_run_time?: number[];
+  last_episode_runtime?: number | null;
   homepage?: string;
   networks?: { name: string }[];
 }
@@ -125,6 +126,7 @@ export default function ShowDetailPage() {
             vote_average: tmdb.vote_average,
             number_of_seasons: tmdb.number_of_seasons,
             episode_run_time: tmdb.episode_run_time,
+            last_episode_runtime: tmdb.last_episode_to_air?.runtime ?? null,
             homepage: tmdb.homepage,
             networks: tmdb.networks,
           });
@@ -222,14 +224,18 @@ export default function ShowDetailPage() {
                 </span>
               </>
             )}
-            {tmdbDetails?.episode_run_time && tmdbDetails.episode_run_time.length > 0 && (
-              <>
-                <span className="text-gray-600">&middot;</span>
-                <span className="text-sm text-gray-400">
-                  ~{Math.round(tmdbDetails.episode_run_time.reduce((a, b) => a + b, 0) / tmdbDetails.episode_run_time.length)} min/ep
-                </span>
-              </>
-            )}
+            {(() => {
+              const runTimes = tmdbDetails?.episode_run_time;
+              const avgRuntime = runTimes && runTimes.length > 0
+                ? Math.round(runTimes.reduce((a, b) => a + b, 0) / runTimes.length)
+                : tmdbDetails?.last_episode_runtime || null;
+              return avgRuntime ? (
+                <>
+                  <span className="text-gray-600">&middot;</span>
+                  <span className="text-sm text-gray-400">~{avgRuntime} min/ep</span>
+                </>
+              ) : null;
+            })()}
           </div>
 
           {/* Genre Tags */}
