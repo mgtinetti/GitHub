@@ -58,7 +58,7 @@ export default function NonRankablePage() {
           {year} <span className="text-amber-500">Non-Rankable</span>
         </h1>
         <p className="text-gray-400 max-w-xl mx-auto">
-          Documentaries, reality TV, previous-year shows, and more — watched but not ranked.
+          Documentaries, reality TV, previous-year shows, and more — currently watching and loved, but not rankable.
         </p>
       </div>
 
