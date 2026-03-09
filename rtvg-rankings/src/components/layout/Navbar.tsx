@@ -79,7 +79,7 @@ export default function Navbar() {
             <Link
               href={`/episodes/${latestYear}`}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isActive("/episodes") || isActive("/performances")
+                isActive("/episodes") || isActive("/performances") || isActive("/non-rankable")
                   ? "text-amber-500"
                   : "text-gray-400 hover:text-white"
               }`}
@@ -185,6 +185,13 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
           >
             Best Performances
+          </Link>
+          <Link
+            href={`/non-rankable/${latestYear}`}
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+            onClick={() => setMenuOpen(false)}
+          >
+            Non-Rankable
           </Link>
           <div className="h-px bg-white/5 my-2" />
           <Link

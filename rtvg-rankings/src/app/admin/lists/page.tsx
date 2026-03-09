@@ -9,9 +9,18 @@ import { supabase } from "@/lib/supabase/client";
 import { fetchActiveYears } from "@/lib/supabase/queries";
 import ShowSearch from "@/components/manage/ShowSearch";
 
-type ListTab = "episodes" | "performances" | "all-time";
+type ListTab = "episodes" | "performances" | "all-time" | "non-rankable";
 
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
+
+const NON_RANKABLE_CATEGORIES = [
+  "Documentary",
+  "Reality TV",
+  "Previous Year",
+  "Limited/Special",
+  "Sports",
+  "Other",
+];
 
 interface EpisodeItem {
   id: string;
@@ -39,6 +48,17 @@ interface AllTimeItem {
   poster_url: string;
   network: string;
   season_number: number;
+}
+
+interface NonRankableItem {
+  id: string;
+  show_title: string;
+  poster_url: string;
+  network: string;
+  season_number: number;
+  category: string;
+  note: string | null;
+  sort_order: number;
 }
 
 async function ensureShowInDb(tmdbId: number, showName: string, posterPath: string | null) {
@@ -157,6 +177,12 @@ export default function ManageListsPage() {
   const [allTime, setAllTime] = useState<AllTimeItem[]>([]);
   const [loadingAllTime, setLoadingAllTime] = useState(false);
 
+  // Non-rankable
+  const [nonRankable, setNonRankable] = useState<NonRankableItem[]>([]);
+  const [loadingNonRankable, setLoadingNonRankable] = useState(false);
+  const [nrCategory, setNrCategory] = useState("Other");
+  const [nrNote, setNrNote] = useState("");
+
   useEffect(() => {
     fetchActiveYears().then((y) => {
       const currentYear = new Date().getFullYear();
@@ -171,6 +197,7 @@ export default function ManageListsPage() {
     if (tab === "episodes") loadEpisodes();
     if (tab === "performances") loadPerformances();
     if (tab === "all-time") loadAllTime();
+    if (tab === "non-rankable") loadNonRankable();
   }, [user, tab, selectedYear]);
 
   function resetShowSelection() {
@@ -186,6 +213,8 @@ export default function ManageListsPage() {
     setCastFilter("");
     setActorName("");
     setCharName("");
+    setNrCategory("Other");
+    setNrNote("");
   }
 
   async function onShowSelected(show: { id: number; name: string; poster_path: string | null }) {
@@ -480,6 +509,66 @@ export default function ManageListsPage() {
     await loadAllTime();
   }
 
+  // ── Non-Rankable ────────────────────────────────────────
+
+  async function loadNonRankable() {
+    if (!user) return;
+    setLoadingNonRankable(true);
+    const { data } = await supabase
+      .from("non_rankable_entries")
+      .select("id, season_number, category, note, sort_order, shows!inner(title, poster_url, network)")
+      .eq("user_id", user.id)
+      .eq("year", selectedYear)
+      .order("sort_order", { ascending: true });
+
+    setNonRankable(
+      ((data || []) as any[]).map((r) => ({
+        id: r.id,
+        show_title: r.shows?.title || "Unknown",
+        poster_url: r.shows?.poster_url || "/placeholder-poster.svg",
+        network: r.shows?.network || "Unknown",
+        season_number: r.season_number,
+        category: r.category,
+        note: r.note,
+        sort_order: r.sort_order,
+      }))
+    );
+    setLoadingNonRankable(false);
+  }
+
+  async function addNonRankable(seasonNumber: number) {
+    if (!user || !selectedShow) return;
+    setSaving(true);
+    const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
+    if (!showDbId) { setSaving(false); return; }
+
+    await supabase.from("non_rankable_entries").insert({
+      user_id: user.id,
+      show_id: showDbId,
+      year: selectedYear,
+      season_number: seasonNumber,
+      category: nrCategory,
+      note: nrNote || null,
+      sort_order: nonRankable.length + 1,
+    });
+
+    resetShowSelection();
+    await loadNonRankable();
+    setSaving(false);
+  }
+
+  async function removeNonRankable(id: string) {
+    await supabase.from("non_rankable_entries").delete().eq("id", id);
+    const remaining = nonRankable.filter((e) => e.id !== id);
+    for (let i = 0; i < remaining.length; i++) {
+      await supabase
+        .from("non_rankable_entries")
+        .update({ sort_order: i + 1 })
+        .eq("id", remaining[i].id);
+    }
+    await loadNonRankable();
+  }
+
   // ── Render ────────────────────────────────────────────
 
   if (authLoading) {
@@ -512,20 +601,20 @@ export default function ManageListsPage() {
         </h1>
       </div>
       <p className="text-gray-400 text-sm mb-6">
-        Episodes, performances, and all-time rankings.
+        Episodes, performances, all-time, and non-rankable shows.
       </p>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-white/5 p-1 rounded-xl glass w-fit mb-6">
-        {(["episodes", "performances", "all-time"] as ListTab[]).map((t) => (
+      <div className="flex gap-1 bg-white/5 p-1 rounded-xl glass w-fit mb-6 overflow-x-auto">
+        {(["episodes", "performances", "all-time", "non-rankable"] as ListTab[]).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); resetShowSelection(); }}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${
               tab === t ? "bg-amber-500 text-black" : "text-gray-400 hover:text-white"
             }`}
           >
-            {t === "all-time" ? "All-Time" : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === "all-time" ? "All-Time" : t === "non-rankable" ? "Non-Rankable" : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
@@ -552,7 +641,7 @@ export default function ManageListsPage() {
       {/* Add Section */}
       <div className="glass rounded-xl border border-white/5 p-6 mb-8">
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
-          Add {tab === "episodes" ? "Episode" : tab === "performances" ? "Performance" : "All-Time Entry"}
+          Add {tab === "episodes" ? "Episode" : tab === "performances" ? "Performance" : tab === "non-rankable" ? "Non-Rankable Show" : "All-Time Entry"}
         </h2>
 
         {!selectedShow ? (
@@ -805,6 +894,59 @@ export default function ManageListsPage() {
                 )}
               </div>
             )}
+            {/* Non-Rankable: pick season + category */}
+            {tab === "non-rankable" && (
+              <div className="space-y-3">
+                {loadingSeasons ? (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                    Loading seasons...
+                  </div>
+                ) : (
+                  <div>
+                    <div className="mb-3">
+                      <label className="text-xs text-gray-500 block mb-1">Category</label>
+                      <select
+                        value={nrCategory}
+                        onChange={(e) => setNrCategory(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 outline-none appearance-none cursor-pointer"
+                      >
+                        {NON_RANKABLE_CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-xs text-gray-500 block mb-1">Note (optional)</label>
+                      <input
+                        type="text"
+                        value={nrNote}
+                        onChange={(e) => setNrNote(e.target.value)}
+                        placeholder="e.g. Finished S2, great doc..."
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">Select a season:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {showSeasons.map((s) => (
+                        <button
+                          key={s.season_number}
+                          onClick={() => addNonRankable(s.season_number)}
+                          disabled={saving}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left disabled:opacity-30"
+                        >
+                          <p className="font-bold">Season {s.season_number}</p>
+                          <p className="text-[10px] text-gray-500">
+                            {s.episode_count} eps
+                            {s.air_date ? ` · ${new Date(s.air_date).getFullYear()}` : ""}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -812,9 +954,9 @@ export default function ManageListsPage() {
       {/* Current List */}
       <div className="glass rounded-xl border border-white/5 p-6">
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
-          {tab === "episodes" ? `Episodes (${selectedYear})` : tab === "performances" ? `Performances (${selectedYear})` : "All-Time"}
+          {tab === "episodes" ? `Episodes (${selectedYear})` : tab === "performances" ? `Performances (${selectedYear})` : tab === "non-rankable" ? `Non-Rankable (${selectedYear})` : "All-Time"}
           {" — "}
-          {tab === "episodes" ? episodes.length : tab === "performances" ? performances.length : allTime.length} entries
+          {tab === "episodes" ? episodes.length : tab === "performances" ? performances.length : tab === "non-rankable" ? nonRankable.length : allTime.length} entries
         </h2>
 
         {/* Episodes list */}
@@ -948,6 +1090,51 @@ export default function ManageListsPage() {
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Non-Rankable list */}
+        {tab === "non-rankable" && (
+          loadingNonRankable ? (
+            <div className="text-center py-6">
+              <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : nonRankable.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">No non-rankable shows yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {nonRankable.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 group">
+                  <div className="relative w-8 h-12 rounded overflow-hidden shrink-0">
+                    <Image src={entry.poster_url} alt={entry.show_title} fill className="object-cover" sizes="32px" />
+                  </div>
+                  <div className="min-w-0 flex-grow">
+                    <p className="font-bold text-sm truncate">{entry.show_title}</p>
+                    <p className="text-[11px] text-gray-400">
+                      S{entry.season_number} · {entry.network}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500 border border-white/5 font-medium">
+                        {entry.category}
+                      </span>
+                      {entry.note && (
+                        <span className="text-[10px] text-gray-600 italic truncate">
+                          {entry.note}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeNonRankable(entry.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
                 </div>

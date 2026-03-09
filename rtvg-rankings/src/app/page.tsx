@@ -116,6 +116,12 @@ export default function HomePage() {
             >
               Currently Watching
             </Link>
+            <Link
+              href={`/non-rankable/${latestYear}`}
+              className="bg-white/5 hover:bg-white/10 text-white font-bold px-6 md:px-8 py-3 rounded-xl transition-colors border border-white/10 text-sm"
+            >
+              Non-Rankable
+            </Link>
           </div>
         </div>
       </section>
