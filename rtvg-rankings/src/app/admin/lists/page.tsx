@@ -6,9 +6,8 @@ import Image from "next/image";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
-import { fetchActiveYears, fetchUsers } from "@/lib/supabase/queries";
+import { fetchActiveYears } from "@/lib/supabase/queries";
 import ShowSearch from "@/components/manage/ShowSearch";
-import type { User } from "@/types";
 
 type ListTab = "episodes" | "performances" | "all-time" | "non-rankable";
 
@@ -149,10 +148,6 @@ export default function ManageListsPage() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [saving, setSaving] = useState(false);
 
-  // User picker — manage lists for any user
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [managingUserId, setManagingUserId] = useState<string | null>(null);
-
   // Shared show selection state
   const [selectedShow, setSelectedShow] = useState<{
     id: number; name: string; poster_path: string | null;
@@ -205,25 +200,15 @@ export default function ManageListsPage() {
       setYears(merged);
       setSelectedYear(merged[0]);
     });
-    fetchUsers().then((users) => {
-      setAllUsers(users);
-    });
   }, []);
 
-  // Default managingUserId to the logged-in user
   useEffect(() => {
-    if (user && !managingUserId) {
-      setManagingUserId(user.id);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!managingUserId) return;
+    if (!user) return;
     if (tab === "episodes") loadEpisodes();
     if (tab === "performances") loadPerformances();
     if (tab === "all-time") loadAllTime();
     if (tab === "non-rankable") loadNonRankable();
-  }, [managingUserId, tab, selectedYear]);
+  }, [user, tab, selectedYear]);
 
   function resetShowSelection() {
     setSelectedShow(null);
@@ -296,13 +281,13 @@ export default function ManageListsPage() {
   }
 
   async function addEpisodeFromPicker(episodeNumber: number, episodeTitle: string) {
-    if (!managingUserId || !selectedShow || epSeasonNum === null) return;
+    if (!user || !selectedShow || epSeasonNum === null) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
 
     await supabase.from("episode_ranking_entries").insert({
-      user_id: managingUserId,
+      user_id: user.id,
       year: selectedYear,
       rank_position: episodes.length + 1,
       show_id: showDbId,
@@ -317,7 +302,7 @@ export default function ManageListsPage() {
   }
 
   async function addPerformanceFromPicker(actName: string, charNameVal: string) {
-    if (!managingUserId || !selectedShow || perfSeasonNum === null) return;
+    if (!user || !selectedShow || perfSeasonNum === null) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
@@ -325,7 +310,7 @@ export default function ManageListsPage() {
     if (!seasonDbId) { setSaving(false); return; }
 
     await supabase.from("performance_ranking_entries").insert({
-      user_id: managingUserId,
+      user_id: user.id,
       year: selectedYear,
       rank_position: performances.length + 1,
       actor_name: actName,
@@ -341,12 +326,12 @@ export default function ManageListsPage() {
   // ── Episodes ──────────────────────────────────────────
 
   async function loadEpisodes() {
-    if (!managingUserId) return;
+    if (!user) return;
     setLoadingEpisodes(true);
     const { data } = await supabase
       .from("episode_ranking_entries")
       .select("id, rank_position, season_number, episode_number, episode_title, shows!inner(title, poster_url)")
-      .eq("user_id", managingUserId)
+      .eq("user_id", user.id)
       .eq("year", selectedYear)
       .order("rank_position", { ascending: true });
 
@@ -365,13 +350,13 @@ export default function ManageListsPage() {
   }
 
   async function addEpisodeManual() {
-    if (!managingUserId || !selectedShow || epSeasonNum === null || !epEpisodeNum || !epTitle) return;
+    if (!user || !selectedShow || epSeasonNum === null || !epEpisodeNum || !epTitle) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
 
     await supabase.from("episode_ranking_entries").insert({
-      user_id: managingUserId,
+      user_id: user.id,
       year: selectedYear,
       rank_position: episodes.length + 1,
       show_id: showDbId,
@@ -415,12 +400,12 @@ export default function ManageListsPage() {
   // ── Performances ──────────────────────────────────────
 
   async function loadPerformances() {
-    if (!managingUserId) return;
+    if (!user) return;
     setLoadingPerfs(true);
     const { data } = await supabase
       .from("performance_ranking_entries")
       .select("id, rank_position, actor_name, character_name, seasons!inner(season_number, shows!inner(title))")
-      .eq("user_id", managingUserId)
+      .eq("user_id", user.id)
       .eq("year", selectedYear)
       .order("rank_position", { ascending: true });
 
@@ -438,7 +423,7 @@ export default function ManageListsPage() {
   }
 
   async function addPerformance() {
-    if (!managingUserId || !selectedShow || perfSeasonNum === null || !actorName) return;
+    if (!user || !selectedShow || perfSeasonNum === null || !actorName) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
@@ -446,7 +431,7 @@ export default function ManageListsPage() {
     if (!seasonDbId) { setSaving(false); return; }
 
     await supabase.from("performance_ranking_entries").insert({
-      user_id: managingUserId,
+      user_id: user.id,
       year: selectedYear,
       rank_position: performances.length + 1,
       actor_name: actorName,
@@ -486,12 +471,12 @@ export default function ManageListsPage() {
   // ── All-Time ──────────────────────────────────────────
 
   async function loadAllTime() {
-    if (!managingUserId) return;
+    if (!user) return;
     setLoadingAllTime(true);
     const { data } = await supabase
       .from("all_time_entries")
       .select("id, rank_position, shows!inner(title, poster_url, network)")
-      .eq("user_id", managingUserId)
+      .eq("user_id", user.id)
       .order("rank_position", { ascending: true });
 
     setAllTime(
@@ -507,13 +492,13 @@ export default function ManageListsPage() {
   }
 
   async function addAllTime() {
-    if (!managingUserId || !selectedShow) return;
+    if (!user || !selectedShow) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
 
     const { error } = await supabase.from("all_time_entries").insert({
-      user_id: managingUserId,
+      user_id: user.id,
       show_id: showDbId,
       rank_position: allTime.length + 1,
     });
@@ -558,12 +543,12 @@ export default function ManageListsPage() {
   // ── Non-Rankable ────────────────────────────────────────
 
   async function loadNonRankable() {
-    if (!managingUserId) return;
+    if (!user) return;
     setLoadingNonRankable(true);
     const { data } = await supabase
       .from("non_rankable_entries")
       .select("id, season_number, category, note, sort_order, shows!inner(title, poster_url, network)")
-      .eq("user_id", managingUserId)
+      .eq("user_id", user.id)
       .eq("year", selectedYear)
       .order("sort_order", { ascending: true });
 
@@ -583,13 +568,13 @@ export default function ManageListsPage() {
   }
 
   async function addNonRankable(seasonNumber: number) {
-    if (!managingUserId || !selectedShow) return;
+    if (!user || !selectedShow) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
 
     const { error } = await supabase.from("non_rankable_entries").insert({
-      user_id: managingUserId,
+      user_id: user.id,
       show_id: showDbId,
       year: selectedYear,
       season_number: seasonNumber,
@@ -654,25 +639,6 @@ export default function ManageListsPage() {
       <p className="text-gray-400 text-sm mb-6">
         Episodes, performances, all-time, and non-rankable shows.
       </p>
-
-      {/* User picker */}
-      {allUsers.length > 0 && (
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {allUsers.map((u) => (
-            <button
-              key={u.id}
-              onClick={() => { setManagingUserId(u.id); resetShowSelection(); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                managingUserId === u.id
-                  ? "bg-amber-500 text-black"
-                  : "bg-white/5 text-gray-400 hover:text-white border border-white/10"
-              }`}
-            >
-              {u.display_name}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-white/5 p-1 rounded-xl glass w-fit mb-6 overflow-x-auto">
