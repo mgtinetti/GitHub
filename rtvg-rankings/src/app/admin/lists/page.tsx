@@ -76,7 +76,7 @@ async function ensureShowInDb(tmdbId: number, showName: string, posterPath: stri
   } catch { /* use fallback */ }
 
   const posterUrl = posterPath ? `${TMDB_IMAGE_BASE}/w342${posterPath}` : null;
-  const { data: newShow } = await supabase
+  const { data: newShow, error } = await supabase
     .from("shows")
     .insert({
       tmdb_id: tmdbId,
@@ -88,6 +88,17 @@ async function ensureShowInDb(tmdbId: number, showName: string, posterPath: stri
     })
     .select("id")
     .single();
+
+  if (error) {
+    console.error("Failed to insert show:", error);
+    // If insert failed due to race condition (duplicate), try fetching again
+    const { data: retry } = await supabase
+      .from("shows")
+      .select("id")
+      .eq("tmdb_id", tmdbId)
+      .single();
+    return retry?.id || null;
+  }
 
   return newShow?.id || null;
 }
@@ -486,11 +497,16 @@ export default function ManageListsPage() {
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
 
-    await supabase.from("all_time_entries").insert({
+    const { error } = await supabase.from("all_time_entries").insert({
       user_id: user.id,
       show_id: showDbId,
       rank_position: allTime.length + 1,
     });
+
+    if (error) {
+      console.error("Failed to add all-time entry:", error);
+      alert(`Failed to add: ${error.message}`);
+    }
 
     resetShowSelection();
     await loadAllTime();
@@ -542,7 +558,7 @@ export default function ManageListsPage() {
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
 
-    await supabase.from("non_rankable_entries").insert({
+    const { error } = await supabase.from("non_rankable_entries").insert({
       user_id: user.id,
       show_id: showDbId,
       year: selectedYear,
@@ -551,6 +567,11 @@ export default function ManageListsPage() {
       note: nrNote || null,
       sort_order: nonRankable.length + 1,
     });
+
+    if (error) {
+      console.error("Failed to add non-rankable entry:", error);
+      alert(`Failed to add: ${error.message}`);
+    }
 
     resetShowSelection();
     await loadNonRankable();
