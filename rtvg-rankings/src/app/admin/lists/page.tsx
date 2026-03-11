@@ -47,7 +47,6 @@ interface AllTimeItem {
   show_title: string;
   poster_url: string;
   network: string;
-  season_number: number;
 }
 
 interface NonRankableItem {
@@ -219,6 +218,10 @@ export default function ManageListsPage() {
 
   async function onShowSelected(show: { id: number; name: string; poster_path: string | null }) {
     setSelectedShow(show);
+
+    // All-time tab doesn't need seasons — show is added directly
+    if (tab === "all-time") return;
+
     setLoadingSeasons(true);
     try {
       const res = await fetch(`/api/tmdb/show/${show.id}`);
@@ -461,7 +464,7 @@ export default function ManageListsPage() {
     setLoadingAllTime(true);
     const { data } = await supabase
       .from("all_time_entries")
-      .select("id, rank_position, seasons!inner(season_number, shows!inner(title, poster_url, network))")
+      .select("id, rank_position, shows!inner(title, poster_url, network)")
       .eq("user_id", user.id)
       .order("rank_position", { ascending: true });
 
@@ -469,26 +472,23 @@ export default function ManageListsPage() {
       ((data || []) as any[]).map((r) => ({
         id: r.id,
         rank_position: r.rank_position,
-        show_title: r.seasons?.shows?.title || "Unknown",
-        poster_url: r.seasons?.shows?.poster_url || "/placeholder-poster.svg",
-        network: r.seasons?.shows?.network || "Unknown",
-        season_number: r.seasons?.season_number || 0,
+        show_title: r.shows?.title || "Unknown",
+        poster_url: r.shows?.poster_url || "/placeholder-poster.svg",
+        network: r.shows?.network || "Unknown",
       }))
     );
     setLoadingAllTime(false);
   }
 
-  async function addAllTime(seasonNumber: number) {
+  async function addAllTime() {
     if (!user || !selectedShow) return;
     setSaving(true);
     const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
     if (!showDbId) { setSaving(false); return; }
-    const seasonDbId = await ensureSeasonInDb(showDbId, selectedShow.id, seasonNumber);
-    if (!seasonDbId) { setSaving(false); return; }
 
     await supabase.from("all_time_entries").insert({
       user_id: user.id,
-      season_id: seasonDbId,
+      show_id: showDbId,
       rank_position: allTime.length + 1,
     });
 
@@ -866,33 +866,15 @@ export default function ManageListsPage() {
               </div>
             )}
 
-            {/* All-Time: pick a season */}
+            {/* All-Time: add show directly (no season selection) */}
             {tab === "all-time" && (
-              <div>
-                {loadingSeasons ? (
-                  <div className="flex items-center gap-2 text-gray-400 text-sm">
-                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                    Loading seasons...
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2">
-                    {showSeasons.map((s) => (
-                      <button
-                        key={s.season_number}
-                        onClick={() => addAllTime(s.season_number)}
-                        disabled={saving}
-                        className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left disabled:opacity-30"
-                      >
-                        <p className="font-bold">Season {s.season_number}</p>
-                        <p className="text-[10px] text-gray-500">
-                          {s.episode_count} eps
-                          {s.air_date ? ` · ${new Date(s.air_date).getFullYear()}` : ""}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={addAllTime}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
+              >
+                {saving ? "Adding..." : "Add to All-Time"}
+              </button>
             )}
             {/* Non-Rankable: pick season + category */}
             {tab === "non-rankable" && (
@@ -1082,7 +1064,7 @@ export default function ManageListsPage() {
                   </div>
                   <div className="min-w-0 flex-grow">
                     <p className="font-bold text-sm truncate">{entry.show_title}</p>
-                    <p className="text-[11px] text-gray-400">Season {entry.season_number} · {entry.network}</p>
+                    <p className="text-[11px] text-gray-400">{entry.network}</p>
                   </div>
                   <button
                     onClick={() => removeAllTime(entry.id)}

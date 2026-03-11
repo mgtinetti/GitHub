@@ -27,7 +27,7 @@ export default function AllTimeOverviewPage() {
           All-Time <span className="text-amber-500">Rankings</span>
         </h1>
         <p className="text-gray-400">
-          Our personal top TV seasons of all time, regardless of year.
+          Our personal top TV shows of all time, regardless of year.
         </p>
       </div>
 

@@ -266,25 +266,25 @@ export const PERFORMANCE_RANKINGS_2025: Record<string, PerformanceRankingEntry[]
 // ─── All-Time Rankings ──────────────────────────────────────
 export const ALL_TIME_RANKINGS: Record<string, AllTimeEntry[]> = {
   "user-tinetti": [
-    { id: "at-m1", user_id: "user-tinetti", season_id: "season-severance-2", rank_position: 1, updated_at: "2025-12-15", show: SHOWS[0], season: SEASONS[0] },
-    { id: "at-m2", user_id: "user-tinetti", season_id: "season-succession-4", rank_position: 2, updated_at: "2025-12-15", show: SHOWS[4], season: SEASONS[4] },
-    { id: "at-m3", user_id: "user-tinetti", season_id: "season-bear-4", rank_position: 3, updated_at: "2025-12-15", show: SHOWS[1], season: SEASONS[1] },
-    { id: "at-m4", user_id: "user-tinetti", season_id: "season-andor-2", rank_position: 4, updated_at: "2025-12-15", show: SHOWS[2], season: SEASONS[2] },
-    { id: "at-m5", user_id: "user-tinetti", season_id: "season-shogun-1", rank_position: 5, updated_at: "2025-12-15", show: SHOWS[7], season: SEASONS[7] },
+    { id: "at-m1", user_id: "user-tinetti", show_id: "show-severance", rank_position: 1, updated_at: "2025-12-15", show: SHOWS[0] },
+    { id: "at-m2", user_id: "user-tinetti", show_id: "show-succession", rank_position: 2, updated_at: "2025-12-15", show: SHOWS[4] },
+    { id: "at-m3", user_id: "user-tinetti", show_id: "show-bear", rank_position: 3, updated_at: "2025-12-15", show: SHOWS[1] },
+    { id: "at-m4", user_id: "user-tinetti", show_id: "show-andor", rank_position: 4, updated_at: "2025-12-15", show: SHOWS[2] },
+    { id: "at-m5", user_id: "user-tinetti", show_id: "show-shogun", rank_position: 5, updated_at: "2025-12-15", show: SHOWS[7] },
   ],
   "user-chubbs": [
-    { id: "at-k1", user_id: "user-chubbs", season_id: "season-succession-4", rank_position: 1, updated_at: "2025-12-15", show: SHOWS[4], season: SEASONS[4] },
-    { id: "at-k2", user_id: "user-chubbs", season_id: "season-severance-2", rank_position: 2, updated_at: "2025-12-15", show: SHOWS[0], season: SEASONS[0] },
-    { id: "at-k3", user_id: "user-chubbs", season_id: "season-bear-4", rank_position: 3, updated_at: "2025-12-15", show: SHOWS[1], season: SEASONS[1] },
-    { id: "at-k4", user_id: "user-chubbs", season_id: "season-barry-4", rank_position: 4, updated_at: "2025-12-15", show: SHOWS[5], season: SEASONS[5] },
-    { id: "at-k5", user_id: "user-chubbs", season_id: "season-shogun-1", rank_position: 5, updated_at: "2025-12-15", show: SHOWS[7], season: SEASONS[7] },
+    { id: "at-k1", user_id: "user-chubbs", show_id: "show-succession", rank_position: 1, updated_at: "2025-12-15", show: SHOWS[4] },
+    { id: "at-k2", user_id: "user-chubbs", show_id: "show-severance", rank_position: 2, updated_at: "2025-12-15", show: SHOWS[0] },
+    { id: "at-k3", user_id: "user-chubbs", show_id: "show-bear", rank_position: 3, updated_at: "2025-12-15", show: SHOWS[1] },
+    { id: "at-k4", user_id: "user-chubbs", show_id: "show-barry", rank_position: 4, updated_at: "2025-12-15", show: SHOWS[5] },
+    { id: "at-k5", user_id: "user-chubbs", show_id: "show-shogun", rank_position: 5, updated_at: "2025-12-15", show: SHOWS[7] },
   ],
   "user-poteete": [
-    { id: "at-j1", user_id: "user-poteete", season_id: "season-severance-2", rank_position: 1, updated_at: "2025-12-15", show: SHOWS[0], season: SEASONS[0] },
-    { id: "at-j2", user_id: "user-poteete", season_id: "season-andor-2", rank_position: 2, updated_at: "2025-12-15", show: SHOWS[2], season: SEASONS[2] },
-    { id: "at-j3", user_id: "user-poteete", season_id: "season-bear-4", rank_position: 3, updated_at: "2025-12-15", show: SHOWS[1], season: SEASONS[1] },
-    { id: "at-j4", user_id: "user-poteete", season_id: "season-shogun-1", rank_position: 4, updated_at: "2025-12-15", show: SHOWS[7], season: SEASONS[7] },
-    { id: "at-j5", user_id: "user-poteete", season_id: "season-succession-4", rank_position: 5, updated_at: "2025-12-15", show: SHOWS[4], season: SEASONS[4] },
+    { id: "at-j1", user_id: "user-poteete", show_id: "show-severance", rank_position: 1, updated_at: "2025-12-15", show: SHOWS[0] },
+    { id: "at-j2", user_id: "user-poteete", show_id: "show-andor", rank_position: 2, updated_at: "2025-12-15", show: SHOWS[2] },
+    { id: "at-j3", user_id: "user-poteete", show_id: "show-bear", rank_position: 3, updated_at: "2025-12-15", show: SHOWS[1] },
+    { id: "at-j4", user_id: "user-poteete", show_id: "show-shogun", rank_position: 4, updated_at: "2025-12-15", show: SHOWS[7] },
+    { id: "at-j5", user_id: "user-poteete", show_id: "show-succession", rank_position: 5, updated_at: "2025-12-15", show: SHOWS[4] },
   ],
 };
 

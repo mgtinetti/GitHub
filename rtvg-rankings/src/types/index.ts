@@ -80,11 +80,10 @@ export interface PerformanceRankingEntry {
 export interface AllTimeEntry {
   id: string;
   user_id: string;
-  season_id: string;
+  show_id: string;
   rank_position: number;
   updated_at: string;
   show?: Show;
-  season?: Season;
 }
 
 export interface AwardCategory {

@@ -16,7 +16,6 @@ interface AllTimeEntry {
   poster_url: string;
   network: string;
   genres: string[];
-  season_number: number;
 }
 
 export default function UserAllTimePage() {
@@ -48,10 +47,7 @@ export default function UserAllTimePage() {
         .from("all_time_entries")
         .select(`
           id, rank_position,
-          seasons!inner (
-            season_number,
-            shows!inner ( title, poster_url, network, genres )
-          )
+          shows!inner ( title, poster_url, network, genres )
         `)
         .eq("user_id", matched.id)
         .order("rank_position", { ascending: true });
@@ -59,11 +55,10 @@ export default function UserAllTimePage() {
       const mapped: AllTimeEntry[] = ((data || []) as any[]).map((row) => ({
         id: row.id,
         rank_position: row.rank_position,
-        show_title: row.seasons?.shows?.title || "Unknown",
-        poster_url: row.seasons?.shows?.poster_url || "/placeholder-poster.svg",
-        network: row.seasons?.shows?.network || "Unknown",
-        genres: row.seasons?.shows?.genres || [],
-        season_number: row.seasons?.season_number || 0,
+        show_title: row.shows?.title || "Unknown",
+        poster_url: row.shows?.poster_url || "/placeholder-poster.svg",
+        network: row.shows?.network || "Unknown",
+        genres: row.shows?.genres || [],
       }));
 
       setEntries(mapped);
@@ -121,7 +116,7 @@ export default function UserAllTimePage() {
               <span className="text-amber-500">All-Time</span>
             </h1>
             <p className="text-gray-400 text-sm mt-1">
-              Top {entries.length} TV seasons of all time
+              Top {entries.length} TV shows of all time
             </p>
           </div>
         </div>
@@ -162,7 +157,7 @@ export default function UserAllTimePage() {
                 {entry.show_title}
               </h3>
               <p className="text-sm text-gray-400">
-                Season {entry.season_number} &middot; {entry.network}
+                {entry.network}
               </p>
             </div>
 
