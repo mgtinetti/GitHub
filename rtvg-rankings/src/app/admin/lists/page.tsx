@@ -9,7 +9,9 @@ import { supabase } from "@/lib/supabase/client";
 import { fetchActiveYears } from "@/lib/supabase/queries";
 import ShowSearch from "@/components/manage/ShowSearch";
 
-type ListTab = "episodes" | "performances" | "all-time" | "non-rankable";
+import { PRESET_AWARD_CATEGORIES } from "@/lib/constants";
+
+type ListTab = "episodes" | "performances" | "all-time" | "non-rankable" | "awards";
 
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
 
@@ -58,6 +60,20 @@ interface NonRankableItem {
   category: string;
   note: string | null;
   sort_order: number;
+}
+
+interface AwardCategoryItem {
+  id: string;
+  name: string;
+  is_preset: boolean;
+  myPick: {
+    id: string;
+    season_id: string;
+    blurb: string | null;
+    show_title: string;
+    poster_url: string;
+    season_number: number;
+  } | null;
 }
 
 async function ensureShowInDb(tmdbId: number, showName: string, posterPath: string | null) {
@@ -193,6 +209,14 @@ export default function ManageListsPage() {
   const [nrCategory, setNrCategory] = useState("Other");
   const [nrNote, setNrNote] = useState("");
 
+  // Awards
+  const [awardCategories, setAwardCategories] = useState<AwardCategoryItem[]>([]);
+  const [loadingAwards, setLoadingAwards] = useState(false);
+  const [editingAwardId, setEditingAwardId] = useState<string | null>(null);
+  const [awardBlurb, setAwardBlurb] = useState("");
+  const [awardSeasonNum, setAwardSeasonNum] = useState<number | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
   useEffect(() => {
     fetchActiveYears().then((y) => {
       const currentYear = new Date().getFullYear();
@@ -208,6 +232,7 @@ export default function ManageListsPage() {
     if (tab === "performances") loadPerformances();
     if (tab === "all-time") loadAllTime();
     if (tab === "non-rankable") loadNonRankable();
+    if (tab === "awards") loadAwards();
   }, [user, tab, selectedYear]);
 
   function resetShowSelection() {
@@ -605,6 +630,136 @@ export default function ManageListsPage() {
     await loadNonRankable();
   }
 
+  // ── Awards ──────────────────────────────────────────
+
+  async function loadAwards() {
+    if (!user) return;
+    setLoadingAwards(true);
+
+    // Fetch categories for this year
+    let { data: categories } = await supabase
+      .from("award_categories")
+      .select("id, name, is_preset")
+      .eq("year", selectedYear)
+      .eq("approved", true)
+      .order("is_preset", { ascending: false })
+      .order("name", { ascending: true });
+
+    // If no categories exist for this year, auto-create presets
+    if (!categories || categories.length === 0) {
+      const presets = PRESET_AWARD_CATEGORIES.map((name) => ({
+        year: selectedYear,
+        name,
+        is_preset: true,
+        created_by: user.id,
+        approved: true,
+      }));
+      await supabase.from("award_categories").insert(presets);
+      const { data: fresh } = await supabase
+        .from("award_categories")
+        .select("id, name, is_preset")
+        .eq("year", selectedYear)
+        .eq("approved", true)
+        .order("is_preset", { ascending: false })
+        .order("name", { ascending: true });
+      categories = fresh || [];
+    }
+
+    // Fetch this user's picks for these categories
+    const categoryIds = categories.map((c: any) => c.id);
+    const { data: picks } = await supabase
+      .from("award_picks")
+      .select("id, category_id, season_id, blurb, seasons!inner(season_number, shows!inner(title, poster_url))")
+      .eq("user_id", user.id)
+      .in("category_id", categoryIds);
+
+    const picksByCategory: Record<string, any> = {};
+    for (const p of (picks || []) as any[]) {
+      picksByCategory[p.category_id] = p;
+    }
+
+    setAwardCategories(
+      categories.map((c: any) => {
+        const pick = picksByCategory[c.id];
+        return {
+          id: c.id,
+          name: c.name,
+          is_preset: c.is_preset,
+          myPick: pick
+            ? {
+                id: pick.id,
+                season_id: pick.season_id,
+                blurb: pick.blurb,
+                show_title: pick.seasons?.shows?.title || "Unknown",
+                poster_url: pick.seasons?.shows?.poster_url || "/placeholder-poster.svg",
+                season_number: pick.seasons?.season_number || 0,
+              }
+            : null,
+        };
+      })
+    );
+    setLoadingAwards(false);
+  }
+
+  async function saveAwardPick(categoryId: string) {
+    if (!user || !selectedShow || awardSeasonNum === null) return;
+    setSaving(true);
+
+    const showDbId = await ensureShowInDb(selectedShow.id, selectedShow.name, selectedShow.poster_path);
+    if (!showDbId) { setSaving(false); return; }
+
+    const seasonDbId = await ensureSeasonInDb(showDbId, selectedShow.id, awardSeasonNum);
+    if (!seasonDbId) { setSaving(false); return; }
+
+    const existing = awardCategories.find((c) => c.id === categoryId)?.myPick;
+
+    if (existing) {
+      await supabase
+        .from("award_picks")
+        .update({ season_id: seasonDbId, blurb: awardBlurb || null })
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("award_picks").insert({
+        category_id: categoryId,
+        user_id: user.id,
+        season_id: seasonDbId,
+        blurb: awardBlurb || null,
+      });
+    }
+
+    setEditingAwardId(null);
+    setAwardBlurb("");
+    setAwardSeasonNum(null);
+    resetShowSelection();
+    await loadAwards();
+    setSaving(false);
+  }
+
+  async function removeAwardPick(pickId: string) {
+    await supabase.from("award_picks").delete().eq("id", pickId);
+    await loadAwards();
+  }
+
+  async function addCustomCategory() {
+    if (!user || !newCategoryName.trim()) return;
+    setSaving(true);
+    await supabase.from("award_categories").insert({
+      year: selectedYear,
+      name: newCategoryName.trim(),
+      is_preset: false,
+      created_by: user.id,
+      approved: true,
+    });
+    setNewCategoryName("");
+    await loadAwards();
+    setSaving(false);
+  }
+
+  async function removeCategory(categoryId: string) {
+    await supabase.from("award_categories").delete().eq("id", categoryId);
+    await loadAwards();
+  }
+
   // ── Render ────────────────────────────────────────────
 
   if (authLoading) {
@@ -637,15 +792,15 @@ export default function ManageListsPage() {
         </h1>
       </div>
       <p className="text-gray-400 text-sm mb-6">
-        Episodes, performances, all-time, and non-rankable shows.
+        Episodes, performances, all-time, non-rankable shows, and awards.
       </p>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-white/5 p-1 rounded-xl glass w-fit mb-6 overflow-x-auto">
-        {(["episodes", "performances", "all-time", "non-rankable"] as ListTab[]).map((t) => (
+        {(["episodes", "performances", "all-time", "non-rankable", "awards"] as ListTab[]).map((t) => (
           <button
             key={t}
-            onClick={() => { setTab(t); resetShowSelection(); }}
+            onClick={() => { setTab(t); resetShowSelection(); setEditingAwardId(null); }}
             className={`px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${
               tab === t ? "bg-amber-500 text-black" : "text-gray-400 hover:text-white"
             }`}
@@ -656,7 +811,7 @@ export default function ManageListsPage() {
       </div>
 
       {/* Year selector (not for all-time) */}
-      {tab !== "all-time" && years.length > 0 && (
+      {tab !== "all-time" && tab !== "awards" && years.length > 0 && (
         <div className="flex gap-2 mb-6 flex-wrap">
           {years.map((y) => (
             <button
@@ -674,8 +829,212 @@ export default function ManageListsPage() {
         </div>
       )}
 
-      {/* Add Section */}
-      <div className="glass rounded-xl border border-white/5 p-6 mb-8">
+      {/* Awards tab — year selector + category-based UI */}
+      {tab === "awards" && (
+        <div className="mb-8">
+          {/* Year selector for awards */}
+          {years.length > 0 && (
+            <div className="flex gap-2 mb-6 flex-wrap">
+              {years.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => setSelectedYear(y)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    selectedYear === y
+                      ? "bg-amber-500 text-black"
+                      : "bg-white/5 text-gray-400 hover:text-white border border-white/10"
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {loadingAwards ? (
+            <div className="text-center py-12">
+              <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {awardCategories.map((cat) => (
+                <div key={cat.id} className="glass rounded-xl border border-white/5 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-500 text-lg">
+                        {cat.name.includes("Disappointing") || cat.name.includes("Overrated") ? "😬" : "🏆"}
+                      </span>
+                      <h3 className="font-bold text-sm uppercase tracking-wider">{cat.name}</h3>
+                      {!cat.is_preset && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500 border border-white/5">Custom</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!cat.is_preset && (
+                        <button
+                          onClick={() => removeCategory(cat.id)}
+                          className="text-gray-600 hover:text-red-400 transition-colors text-xs"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Current pick */}
+                  {cat.myPick && editingAwardId !== cat.id ? (
+                    <div className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
+                      <div className="relative w-10 h-14 rounded overflow-hidden shrink-0">
+                        <Image src={cat.myPick.poster_url} alt={cat.myPick.show_title} fill className="object-cover" sizes="40px" />
+                      </div>
+                      <div className="min-w-0 flex-grow">
+                        <p className="font-bold text-sm">{cat.myPick.show_title}</p>
+                        <p className="text-[11px] text-gray-400">Season {cat.myPick.season_number}</p>
+                        {cat.myPick.blurb && (
+                          <p className="text-[11px] text-gray-500 italic mt-0.5">&ldquo;{cat.myPick.blurb}&rdquo;</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditingAwardId(cat.id);
+                            setAwardBlurb(cat.myPick?.blurb || "");
+                            resetShowSelection();
+                            setAwardSeasonNum(null);
+                          }}
+                          className="text-xs text-gray-400 hover:text-white transition-colors"
+                        >
+                          Change
+                        </button>
+                        <button
+                          onClick={() => removeAwardPick(cat.myPick!.id)}
+                          className="text-xs text-gray-600 hover:text-red-400 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : editingAwardId === cat.id || !cat.myPick ? (
+                    <div className="space-y-3">
+                      {!selectedShow ? (
+                        <div>
+                          {editingAwardId !== cat.id && (
+                            <button
+                              onClick={() => { setEditingAwardId(cat.id); setAwardBlurb(""); resetShowSelection(); setAwardSeasonNum(null); }}
+                              className="text-xs text-amber-500 hover:text-amber-400"
+                            >
+                              + Add your pick
+                            </button>
+                          )}
+                          {editingAwardId === cat.id && (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs text-gray-500">Search for a show:</p>
+                                <button onClick={() => { setEditingAwardId(null); resetShowSelection(); }} className="text-xs text-gray-500 hover:text-white">
+                                  Cancel
+                                </button>
+                              </div>
+                              <ShowSearch onSelect={(show) => { onShowSelected(show); setAwardSeasonNum(null); }} />
+                            </div>
+                          )}
+                        </div>
+                      ) : editingAwardId === cat.id && awardSeasonNum === null ? (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs text-gray-300">
+                              Show: <span className="font-bold text-white">{selectedShow.name}</span>
+                            </p>
+                            <button onClick={() => { resetShowSelection(); setAwardSeasonNum(null); }} className="text-xs text-gray-500 hover:text-white">
+                              Change show
+                            </button>
+                          </div>
+                          {loadingSeasons ? (
+                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                              <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                              Loading seasons...
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-2">Select a season:</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                {showSeasons.map((s) => (
+                                  <button
+                                    key={s.season_number}
+                                    onClick={() => setAwardSeasonNum(s.season_number)}
+                                    className="p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 text-sm text-gray-300 text-left"
+                                  >
+                                    <p className="font-bold">S{s.season_number}</p>
+                                    <p className="text-[10px] text-gray-500">{s.episode_count} eps</p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : editingAwardId === cat.id ? (
+                        <div>
+                          <p className="text-xs text-gray-300 mb-2">
+                            <span className="font-bold text-white">{selectedShow.name}</span> Season {awardSeasonNum}
+                          </p>
+                          <div className="mb-3">
+                            <label className="text-xs text-gray-500 block mb-1">Blurb (optional)</label>
+                            <input
+                              type="text"
+                              value={awardBlurb}
+                              onChange={(e) => setAwardBlurb(e.target.value)}
+                              placeholder="e.g. Nothing even came close."
+                              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => saveAwardPick(cat.id)}
+                              disabled={saving}
+                              className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors"
+                            >
+                              {saving ? "Saving..." : "Save Pick"}
+                            </button>
+                            <button
+                              onClick={() => { setEditingAwardId(null); resetShowSelection(); setAwardSeasonNum(null); }}
+                              className="px-4 py-2 rounded-lg bg-white/5 text-gray-400 text-sm font-bold hover:text-white transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+
+              {/* Add custom category */}
+              <div className="glass rounded-xl border border-dashed border-white/10 p-5">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Add Custom Category</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="e.g. Best Cold Open"
+                    className="flex-grow bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-amber-500 outline-none"
+                  />
+                  <button
+                    onClick={addCustomCategory}
+                    disabled={saving || !newCategoryName.trim()}
+                    className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-bold disabled:opacity-30 hover:bg-amber-400 transition-colors shrink-0"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add Section (not for awards — awards has its own UI) */}
+      {tab !== "awards" && <div className="glass rounded-xl border border-white/5 p-6 mb-8">
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
           Add {tab === "episodes" ? "Episode" : tab === "performances" ? "Performance" : tab === "non-rankable" ? "Non-Rankable Show" : "All-Time Entry"}
         </h2>
@@ -967,10 +1326,10 @@ export default function ManageListsPage() {
             )}
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Current List */}
-      <div className="glass rounded-xl border border-white/5 p-6">
+      {/* Current List (not for awards) */}
+      {tab !== "awards" && <div className="glass rounded-xl border border-white/5 p-6">
         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
           {tab === "episodes" ? `Episodes (${selectedYear})` : tab === "performances" ? `Performances (${selectedYear})` : tab === "non-rankable" ? `Non-Rankable (${selectedYear})` : "All-Time"}
           {" — "}
@@ -1189,7 +1548,7 @@ export default function ManageListsPage() {
             </div>
           )
         )}
-      </div>
+      </div>}
     </div>
   );
 }

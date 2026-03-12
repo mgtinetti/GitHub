@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { YEARS } from "@/lib/constants";
-import { USERS, AWARD_CATEGORIES, AWARD_PICKS } from "@/lib/mock-data";
+import { createServerClient } from "@/lib/supabase/server";
 
 interface Props {
   params: Promise<{ year: string }>;
@@ -16,12 +16,95 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
+interface AwardPick {
+  id: string;
+  category_id: string;
+  user_id: string;
+  blurb: string | null;
+  season_id: string;
+  show_title: string;
+  poster_url: string;
+  season_number: number;
+}
+
+interface AwardCategory {
+  id: string;
+  name: string;
+  picks: AwardPick[];
+}
+
+interface UserInfo {
+  id: string;
+  display_name: string;
+  avatar_url: string;
+}
+
 export default async function AwardsPage({ params }: Props) {
   const { year: yearStr } = await params;
   const year = parseInt(yearStr, 10);
   if (isNaN(year) || year < 2000 || year > 2100) notFound();
 
-  const categories = AWARD_CATEGORIES.filter((c) => c.year === year);
+  const supabase = createServerClient();
+
+  // Fetch categories, picks, and users in parallel
+  const [categoriesResult, picksResult, usersResult] = await Promise.all([
+    supabase
+      .from("award_categories")
+      .select("id, name")
+      .eq("year", year)
+      .eq("approved", true)
+      .order("is_preset", { ascending: false })
+      .order("name", { ascending: true }),
+    supabase
+      .from("award_picks")
+      .select(
+        `id, category_id, user_id, blurb, season_id,
+         seasons!inner(season_number, shows!inner(title, poster_url))`
+      )
+      .in(
+        "category_id",
+        // We'll filter after
+        []
+      ),
+    supabase
+      .from("users")
+      .select("id, display_name, avatar_url")
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const rawCategories = categoriesResult.data || [];
+  const users: UserInfo[] = (usersResult.data || []) as UserInfo[];
+
+  // Now fetch picks for the actual category IDs
+  const categoryIds = rawCategories.map((c: any) => c.id);
+  const { data: rawPicks } = categoryIds.length > 0
+    ? await supabase
+        .from("award_picks")
+        .select(
+          `id, category_id, user_id, blurb, season_id,
+           seasons!inner(season_number, shows!inner(title, poster_url))`
+        )
+        .in("category_id", categoryIds)
+    : { data: [] };
+
+  // Build pick objects
+  const picks: AwardPick[] = ((rawPicks || []) as any[]).map((p) => ({
+    id: p.id,
+    category_id: p.category_id,
+    user_id: p.user_id,
+    blurb: p.blurb,
+    season_id: p.season_id,
+    show_title: p.seasons?.shows?.title || "Unknown",
+    poster_url: p.seasons?.shows?.poster_url || "/placeholder-poster.svg",
+    season_number: p.seasons?.season_number || 0,
+  }));
+
+  // Build categories with their picks
+  const categories: AwardCategory[] = rawCategories.map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    picks: picks.filter((p) => p.category_id === c.id),
+  }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
@@ -59,13 +142,9 @@ export default async function AwardsPage({ params }: Props) {
       {/* Award Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {categories.map((category) => {
-          const picks = AWARD_PICKS.filter(
-            (p) => p.category_id === category.id
-          );
-
           // Determine group winner (majority)
           const pickCounts: Record<string, number> = {};
-          picks.forEach((p) => {
+          category.picks.forEach((p) => {
             if (p.season_id) {
               pickCounts[p.season_id] = (pickCounts[p.season_id] || 0) + 1;
             }
@@ -73,11 +152,12 @@ export default async function AwardsPage({ params }: Props) {
           const winnerSeasonId = Object.entries(pickCounts).sort(
             (a, b) => b[1] - a[1]
           )[0]?.[0];
-          const winnerPick = picks.find(
+          const winnerPick = category.picks.find(
             (p) => p.season_id === winnerSeasonId
           );
           const isUnanimous =
-            winnerSeasonId && pickCounts[winnerSeasonId] === picks.length;
+            winnerSeasonId &&
+            pickCounts[winnerSeasonId] === category.picks.length;
 
           return (
             <div
@@ -106,7 +186,7 @@ export default async function AwardsPage({ params }: Props) {
               </div>
 
               {/* Group Winner */}
-              {winnerPick && winnerPick.show && winnerPick.season && (
+              {winnerPick && (
                 <div className="bg-white/5 p-4 rounded-2xl border border-white/5 mb-4">
                   <span className="text-[10px] font-bold text-gray-500 uppercase block mb-3">
                     Group Winner
@@ -114,8 +194,8 @@ export default async function AwardsPage({ params }: Props) {
                   <div className="flex items-center gap-4">
                     <div className="relative w-14 h-20 rounded-lg overflow-hidden shadow-xl shrink-0">
                       <Image
-                        src={winnerPick.show.poster_url}
-                        alt={winnerPick.show.title}
+                        src={winnerPick.poster_url}
+                        alt={winnerPick.show_title}
                         fill
                         className="object-cover"
                         sizes="56px"
@@ -123,10 +203,10 @@ export default async function AwardsPage({ params }: Props) {
                     </div>
                     <div>
                       <h4 className="text-lg font-bold text-white">
-                        {winnerPick.show.title}
+                        {winnerPick.show_title}
                       </h4>
                       <p className="text-xs text-amber-500 font-bold uppercase tracking-widest">
-                        Season {winnerPick.season.season_number}
+                        Season {winnerPick.season_number}
                       </p>
                     </div>
                   </div>
@@ -135,8 +215,10 @@ export default async function AwardsPage({ params }: Props) {
 
               {/* Individual Picks */}
               <div className="space-y-2">
-                {USERS.map((user) => {
-                  const pick = picks.find((p) => p.user_id === user.id);
+                {users.map((user) => {
+                  const pick = category.picks.find(
+                    (p) => p.user_id === user.id
+                  );
                   return (
                     <div
                       key={user.id}
@@ -158,10 +240,8 @@ export default async function AwardsPage({ params }: Props) {
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-gray-200">
-                          {pick?.show?.title || "—"}{" "}
-                          {pick?.season
-                            ? `S${pick.season.season_number}`
-                            : ""}
+                          {pick?.show_title || "—"}{" "}
+                          {pick ? `S${pick.season_number}` : ""}
                         </span>
                         {pick?.blurb && (
                           <p className="text-[10px] text-gray-500 mt-0.5 italic max-w-[200px] text-right">
