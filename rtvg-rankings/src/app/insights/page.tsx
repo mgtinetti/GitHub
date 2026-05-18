@@ -255,7 +255,7 @@ function StatCard({
 }
 
 export default function InsightsPage() {
-  const [year, setYear] = useState(YEARS[0]);
+  const [year, setYear] = useState<number>(YEARS[0]);
   const [allYears, setAllYears] = useState<number[]>([...YEARS]);
   const [rankings, setRankings] = useState<Record<string, RankingEntry[]>>({});
   const [users, setUsers] = useState<User[]>([]);
