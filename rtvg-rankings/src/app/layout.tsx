@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/constants";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import GuyChat from "@/components/GuyChat";
 import { AuthProvider } from "@/hooks/useAuth";
 import "./globals.css";
 
@@ -44,6 +45,7 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-grow">{children}</main>
           <Footer />
+          <GuyChat />
         </AuthProvider>
       </body>
     </html>
