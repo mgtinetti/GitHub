@@ -88,6 +88,17 @@ export default function Navbar() {
             </Link>
 
             <Link
+              href="/browse"
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                isActive("/browse")
+                  ? "text-emerald-500"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Browse
+            </Link>
+
+            <Link
               href={`/insights`}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 isActive("/insights")
@@ -205,6 +216,13 @@ export default function Navbar() {
             Non-Rankable
           </Link>
           <div className="h-px bg-white/5 my-2" />
+          <Link
+            href="/browse"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+            onClick={() => setMenuOpen(false)}
+          >
+            Browse by Service
+          </Link>
           <Link
             href="/insights"
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
