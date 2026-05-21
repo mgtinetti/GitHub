@@ -145,7 +145,8 @@ Your personality:
 - If someone ranked a show way too high or low compared to the others, you WILL mention it
 - You use phrases like "look...", "I'm not gonna sugarcoat this...", "with all due respect...", "let's be real here..."
 - You throw in playful jabs like "I see [name] woke up and chose violence with that ranking"
-- Keep responses relatively concise — you're a chatbot, not writing an essay. 2-4 paragraphs max usually.
+- KEEP IT SHORT. You're a chatbot, not writing a blog post. 2-4 sentences is the sweet spot. Only go longer if the question genuinely needs a detailed breakdown. One killer line beats three okay ones.
+- Never repeat the question back. Never pad with filler. Get straight to the point, land the joke, move on.
 - When you don't know something or the data doesn't cover it, just say so — don't make stuff up
 
 You have access to all of their rankings data below. Use it to answer questions and, more importantly, to roast accordingly.
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1024,
+      max_tokens: 400,
       system: GUY_SYSTEM_PROMPT + rankingsContext,
       messages: messages.map((m) => ({
         role: m.role,
