@@ -187,12 +187,12 @@ export default function BrowsePage() {
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
       {/* Header */}
       <div className="text-center mb-10">
-        <span className="text-emerald-500 font-mono uppercase tracking-[0.5em] text-xs mb-4 block">
+        <span className="text-amber-500 font-mono uppercase tracking-[0.5em] text-xs mb-4 block">
           Filter &amp; Discover
         </span>
         <h1 className="text-4xl md:text-7xl font-black tracking-tighter uppercase mb-3">
           Browse by{" "}
-          <span className="text-emerald-500">Service</span>
+          <span className="text-amber-500">Service</span>
         </h1>
         <p className="text-gray-400 max-w-xl mx-auto">
           Select one or more streaming services to see our ranked shows on those

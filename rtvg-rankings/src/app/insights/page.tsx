@@ -344,11 +344,11 @@ export default function InsightsPage() {
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
       {/* Header */}
       <div className="text-center mb-12">
-        <span className="text-purple-500 font-mono uppercase tracking-[0.5em] text-xs mb-4 block">
+        <span className="text-amber-500 font-mono uppercase tracking-[0.5em] text-xs mb-4 block">
           Cross-Reference Station
         </span>
         <h1 className="text-4xl md:text-7xl font-black tracking-tighter uppercase mb-3">
-          {year} <span className="text-purple-500">Insights</span>
+          {year} <span className="text-amber-500">Insights</span>
         </h1>
         <p className="text-gray-400 max-w-xl mx-auto">
           Fun facts, comparisons, and deep dives into our viewing habits.
@@ -372,9 +372,19 @@ export default function InsightsPage() {
         ))}
       </div>
 
+      {/* Cross-link */}
+      <div className="text-center mb-8">
+        <Link
+          href={`/${year}`}
+          className="text-xs text-gray-500 hover:text-amber-500 transition-colors"
+        >
+          View {year} Rankings &rarr;
+        </Link>
+      </div>
+
       {loading ? (
         <div className="text-center py-20">
-          <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-500 text-sm">Crunching numbers...</p>
         </div>
       ) : !hasData ? (

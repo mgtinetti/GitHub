@@ -27,7 +27,7 @@ export default function WatchingPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
       <div className="text-center mb-12">
-        <span className="text-emerald-500 font-mono uppercase tracking-[0.5em] text-xs mb-4 block">
+        <span className="text-amber-500 font-mono uppercase tracking-[0.5em] text-xs mb-4 block">
           Live
         </span>
         <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase mb-3">

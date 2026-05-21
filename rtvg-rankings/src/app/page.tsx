@@ -4,9 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { fetchRankingsForYear, fetchActiveYears, fetchCurrentlyWatching } from "@/lib/supabase/queries";
-import { YEARS, PRESET_AWARD_CATEGORIES } from "@/lib/constants";
-import { BLOG_POSTS } from "@/lib/mock-data";
-import { formatDate } from "@/lib/utils";
+import { YEARS } from "@/lib/constants";
 import type { User } from "@/types";
 
 export default function HomePage() {
@@ -43,7 +41,6 @@ export default function HomePage() {
       const total = Object.values(rankings).reduce((sum, r) => sum + r.length, 0);
       setTotalRankings(total);
 
-      // Build consensus top shows (aggregate across all users)
       const showMap = new Map<string, { id: string; title: string; poster_url: string; network: string; season_number: number; totalRank: number; count: number }>();
       for (const entries of Object.values(rankings)) {
         for (const entry of entries) {
@@ -76,10 +73,6 @@ export default function HomePage() {
     }
     loadData();
   }, []);
-
-  const latestPost = [...BLOG_POSTS].sort(
-    (a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
-  )[0];
 
   return (
     <div className="animate-fade-in">
@@ -117,83 +110,12 @@ export default function HomePage() {
               Currently Watching
             </Link>
             <Link
-              href={`/non-rankable/${latestYear}`}
+              href="/browse"
               className="bg-white/5 hover:bg-white/10 text-white font-bold px-6 md:px-8 py-3 rounded-xl transition-colors border border-white/10 text-sm"
             >
-              Non-Rankable
+              Browse by Service
             </Link>
           </div>
-        </div>
-      </section>
-
-      {/* ═══════════════ QUICK NAVIGATION ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-8 md:-mt-8 relative md:z-20">
-        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-          <Link
-            href={`/${latestYear}`}
-            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
-          >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Rankings</h3>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">{years.length} years of data</p>
-          </Link>
-
-          <Link
-            href="/watching"
-            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-emerald-500/30 transition-all group relative"
-          >
-            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-emerald-500/20 transition-colors">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-emerald-500 transition-colors">Watching</h3>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">{watchingCount > 0 ? `${watchingCount} shows live` : "See what\u2019s on"}</p>
-          </Link>
-
-          <Link
-            href={`/awards/${latestYear}`}
-            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
-          >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Awards</h3>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">{PRESET_AWARD_CATEGORIES.length} categories</p>
-          </Link>
-
-          <Link
-            href={`/episodes/${latestYear}`}
-            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
-          >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Lists</h3>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">Episodes & more</p>
-          </Link>
-
-          <Link
-            href="/blog"
-            className="glass rounded-2xl p-3 sm:p-5 border border-white/5 hover:border-amber-500/30 transition-all group"
-          >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-2 sm:mb-3 group-hover:bg-amber-500/20 transition-colors">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-              </svg>
-            </div>
-            <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-amber-500 transition-colors">Blog</h3>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 hidden sm:block">Writeups & discussion</p>
-          </Link>
         </div>
       </section>
 
@@ -309,157 +231,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ AWARDS PREVIEW ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-          <div>
-            <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
-              Year-End Superlatives
-            </span>
-            <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">
-              {latestYear} <span className="text-amber-500">Awards</span>
-            </h2>
-          </div>
-          <Link
-            href={`/awards/${latestYear}`}
-            className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold w-fit"
-          >
-            All Awards &rarr;
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
-          {PRESET_AWARD_CATEGORIES.slice(0, 5).map((category) => (
-            <Link
-              key={category}
-              href={`/awards/${latestYear}`}
-              className="glass rounded-xl p-3 sm:p-4 border border-white/5 hover:border-amber-500/20 transition-all group text-center"
-            >
-              <span className="text-xl sm:text-2xl mb-1 sm:mb-2 block">
-                {category.includes("Disappointing") || category.includes("Overrated") ? "😬" : "🏆"}
-              </span>
-              <h4 className="text-[10px] sm:text-xs font-bold text-white group-hover:text-amber-500 transition-colors leading-tight">
-                {category}
-              </h4>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ═══════════════ LISTS PREVIEW ═══════════════ */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
-        <div className="mb-6">
-          <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
-            Supplementary
-          </span>
-          <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">
-            More <span className="text-amber-500">Lists</span>
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            href={`/episodes/${latestYear}`}
-            className="glass rounded-2xl p-6 border border-white/5 hover:border-amber-500/20 transition-all group"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white group-hover:text-amber-500 transition-colors">
-                  Best Episodes
-                </h3>
-                <p className="text-[11px] text-gray-500">{latestYear} top episodes ranked</p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-400">
-              Our favorite individual episodes of the year, ranked by each member.
-            </p>
-          </Link>
-
-          <Link
-            href={`/performances/${latestYear}`}
-            className="glass rounded-2xl p-6 border border-white/5 hover:border-amber-500/20 transition-all group"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white group-hover:text-amber-500 transition-colors">
-                  Best Performances
-                </h3>
-                <p className="text-[11px] text-gray-500">Top acting of {latestYear}</p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-400">
-              Standout individual acting performances that defined the year.
-            </p>
-          </Link>
-        </div>
-      </section>
-
-      {/* ═══════════════ BLOG PREVIEW ═══════════════ */}
-      {latestPost && (
-        <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-            <div>
-              <span className="text-amber-500 font-mono uppercase tracking-[0.3em] text-[10px] block mb-1">
-                From the Blog
-              </span>
-              <h2 className="text-xl md:text-3xl font-black uppercase tracking-tight">
-                Latest <span className="text-amber-500">Post</span>
-              </h2>
-            </div>
-            <Link
-              href="/blog"
-              className="text-xs text-gray-400 hover:text-amber-500 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 font-semibold w-fit"
-            >
-              All Posts &rarr;
-            </Link>
-          </div>
-
-          <Link
-            href={`/blog/${latestPost.slug}`}
-            className="block glass rounded-2xl p-6 md:p-8 border border-white/5 hover:border-amber-500/20 transition-all group"
-          >
-            {latestPost.is_pinned && (
-              <span className="inline-block text-[10px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest mb-3 border border-amber-500/20">
-                Pinned
-              </span>
-            )}
-            <h3 className="text-xl md:text-2xl font-bold group-hover:text-amber-500 transition-colors mb-2">
-              {latestPost.title}
-            </h3>
-            <div className="flex items-center gap-3 text-sm text-gray-400 mb-4">
-              {latestPost.author && (
-                <span className="font-medium">{latestPost.author.display_name}</span>
-              )}
-              <span className="text-gray-600">&middot;</span>
-              <span>{formatDate(latestPost.published_at)}</span>
-            </div>
-            <p className="text-gray-400 text-sm line-clamp-2">
-              {latestPost.body.replace(/[#*\[\]`]/g, "").slice(0, 200)}...
-            </p>
-            <div className="flex gap-2 mt-4">
-              {latestPost.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-gray-400 uppercase tracking-wider"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </Link>
-        </section>
-      )}
-
       {/* ═══════════════ ABOUT RTVG ═══════════════ */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16 mb-12 md:mb-16">
         <div className="glass rounded-2xl border border-white/5 p-5 sm:p-8 md:p-12">
@@ -527,7 +298,7 @@ export default function HomePage() {
             </div>
             <div className="text-center">
               <p className="text-2xl md:text-3xl font-black text-amber-500">
-                {totalRankings || "\u2014"}
+                {totalRankings || "—"}
               </p>
               <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mt-1">
                 Total Rankings

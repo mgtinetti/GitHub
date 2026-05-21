@@ -185,6 +185,22 @@ export default function ShowDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
+      {/* Back link */}
+      <div className="flex gap-3 mb-6">
+        <Link
+          href={`/${new Date().getFullYear()}`}
+          className="text-xs text-gray-500 hover:text-amber-500 transition-colors"
+        >
+          &larr; Back to Rankings
+        </Link>
+        <Link
+          href="/browse"
+          className="text-xs text-gray-500 hover:text-amber-500 transition-colors"
+        >
+          Browse by Service
+        </Link>
+      </div>
+
       {/* Show Header */}
       <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-12">
         {/* Poster */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { YEARS } from "@/lib/constants";
@@ -11,7 +11,9 @@ export default function Navbar() {
   const pathname = usePathname();
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [years, setYears] = useState<number[]>([...YEARS]);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchActiveYears().then((activeYears) => {
@@ -22,10 +24,27 @@ export default function Navbar() {
     });
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const latestYear = years[0] || 2025;
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path + "/");
+
+  const moreIsActive =
+    isActive("/episodes") ||
+    isActive("/performances") ||
+    isActive("/non-rankable") ||
+    isActive("/blog") ||
+    isActive("/all-time");
 
   return (
     <nav className="sticky top-0 z-50 glass-strong border-b border-white/5">
@@ -58,7 +77,7 @@ export default function Navbar() {
               href="/watching"
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 isActive("/watching")
-                  ? "text-emerald-500"
+                  ? "text-amber-500"
                   : "text-gray-400 hover:text-white"
               }`}
             >
@@ -77,21 +96,10 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href={`/episodes/${latestYear}`}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isActive("/episodes") || isActive("/performances") || isActive("/non-rankable")
-                  ? "text-amber-500"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Lists
-            </Link>
-
-            <Link
               href="/browse"
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 isActive("/browse")
-                  ? "text-emerald-500"
+                  ? "text-amber-500"
                   : "text-gray-400 hover:text-white"
               }`}
             >
@@ -99,26 +107,77 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href={`/insights`}
+              href="/insights"
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 isActive("/insights")
-                  ? "text-purple-500"
+                  ? "text-amber-500"
                   : "text-gray-400 hover:text-white"
               }`}
             >
               Insights
             </Link>
 
-            <Link
-              href="/blog"
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isActive("/blog")
-                  ? "text-amber-500"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Blog
-            </Link>
+            {/* More dropdown */}
+            <div className="relative" ref={moreRef}>
+              <button
+                onClick={() => setMoreOpen(!moreOpen)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 ${
+                  moreIsActive
+                    ? "text-amber-500"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                More
+                <svg
+                  className={`w-3.5 h-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {moreOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 glass-strong rounded-xl border border-white/10 shadow-2xl shadow-black/50 py-2 animate-fade-in">
+                  <Link
+                    href={`/episodes/${latestYear}`}
+                    className="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    Best Episodes
+                  </Link>
+                  <Link
+                    href={`/performances/${latestYear}`}
+                    className="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    Best Performances
+                  </Link>
+                  <Link
+                    href={`/non-rankable/${latestYear}`}
+                    className="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    Non-Rankable
+                  </Link>
+                  <Link
+                    href="/all-time"
+                    className="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    All-Time
+                  </Link>
+                  <div className="h-px bg-white/5 my-1 mx-3" />
+                  <Link
+                    href="/blog"
+                    className="block px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    Blog
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right side */}
@@ -190,9 +249,23 @@ export default function Navbar() {
           >
             Awards
           </Link>
+          <Link
+            href="/browse"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+            onClick={() => setMenuOpen(false)}
+          >
+            Browse by Service
+          </Link>
+          <Link
+            href="/insights"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
+            onClick={() => setMenuOpen(false)}
+          >
+            Insights
+          </Link>
           <div className="h-px bg-white/5 my-2" />
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-3 mb-1">
-            Lists
+            More
           </p>
           <Link
             href={`/episodes/${latestYear}`}
@@ -215,20 +288,12 @@ export default function Navbar() {
           >
             Non-Rankable
           </Link>
-          <div className="h-px bg-white/5 my-2" />
           <Link
-            href="/browse"
+            href="/all-time"
             className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
             onClick={() => setMenuOpen(false)}
           >
-            Browse by Service
-          </Link>
-          <Link
-            href="/insights"
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white"
-            onClick={() => setMenuOpen(false)}
-          >
-            Insights
+            All-Time
           </Link>
           <Link
             href="/blog"
