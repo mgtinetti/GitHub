@@ -8,6 +8,12 @@ import { fetchRankingsForYear, fetchActiveYears } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
 import type { RankingEntry, User } from "@/types";
 
+const USER_COLORS = [
+  { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30", dot: "bg-amber-500" },
+  { bg: "bg-sky-500/10", text: "text-sky-400", border: "border-sky-500/30", dot: "bg-sky-500" },
+  { bg: "bg-rose-500/10", text: "text-rose-400", border: "border-rose-500/30", dot: "bg-rose-500" },
+];
+
 interface RankedShow {
   showId: string;
   title: string;
@@ -328,8 +334,8 @@ export default function BrowsePage() {
             </div>
           </div>
 
-          {/* Results summary */}
-          <div className="flex items-center justify-between mb-6 px-1">
+          {/* Results summary + legend */}
+          <div className="flex items-center justify-between mb-6 px-1 flex-wrap gap-3">
             <p className="text-sm text-gray-400">
               {selectedNetworks.size === 0 ? (
                 <span className="text-gray-500 italic">
@@ -346,9 +352,19 @@ export default function BrowsePage() {
                 </>
               )}
             </p>
-            <p className="text-[10px] text-gray-600 uppercase tracking-wider">
-              Ordered by avg rank
-            </p>
+            <div className="hidden md:flex items-center gap-4">
+              {users.map((u: User, i: number) => {
+                const color = USER_COLORS[i % USER_COLORS.length];
+                return (
+                  <div key={u.id} className="flex items-center gap-1.5">
+                    <div className={cn("w-2.5 h-2.5 rounded-sm", color.dot)} />
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {u.display_name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Shows list */}
@@ -426,16 +442,17 @@ export default function BrowsePage() {
 
                   {/* Individual ranks */}
                   <div className="flex gap-1">
-                    {users.map((u: User) => {
+                    {users.map((u: User, idx: number) => {
                       const data = show.userRanks[u.id];
+                      const color = USER_COLORS[idx % USER_COLORS.length];
                       return (
                         <div
                           key={u.id}
                           className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold",
+                            "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold border",
                             data
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : "bg-white/5 text-gray-600"
+                              ? `${color.bg} ${color.text} ${color.border}`
+                              : "bg-white/5 text-gray-600 border-white/5"
                           )}
                           title={`${u.display_name}: ${data ? `#${data.rank}` : "N/A"}`}
                         >
