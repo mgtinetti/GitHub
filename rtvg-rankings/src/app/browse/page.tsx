@@ -152,6 +152,7 @@ export default function BrowsePage() {
         avgRank: d.totalRank / d.count,
         showCount: d.count,
       }))
+      .filter((n) => n.showCount >= 2)
       .sort((a, b) => a.avgRank - b.avgRank);
   }, [rankedShows]);
 
