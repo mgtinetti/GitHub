@@ -132,6 +132,23 @@ export default function BrowsePage() {
     return [...nets].sort();
   }, [rankedShows]);
 
+  const networkRankings = useMemo(() => {
+    const netMap: Record<string, { totalRank: number; count: number }> = {};
+    for (const show of rankedShows) {
+      if (!show.network || show.network === "Unknown") continue;
+      if (!netMap[show.network]) netMap[show.network] = { totalRank: 0, count: 0 };
+      netMap[show.network].totalRank += show.avgRank;
+      netMap[show.network].count++;
+    }
+    return Object.entries(netMap)
+      .map(([network, d]) => ({
+        network,
+        avgRank: d.totalRank / d.count,
+        showCount: d.count,
+      }))
+      .sort((a, b) => a.avgRank - b.avgRank);
+  }, [rankedShows]);
+
   const filteredShows = useMemo(() => {
     if (selectedNetworks.size === 0) return rankedShows;
     return rankedShows.filter((s: RankedShow) => selectedNetworks.has(s.network));
@@ -204,6 +221,60 @@ export default function BrowsePage() {
         </div>
       ) : (
         <>
+          {/* Service leaderboard */}
+          {networkRankings.length > 0 && (
+            <div className="glass rounded-2xl p-5 border border-white/5 mb-8">
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">
+                Service Rankings — By Average Show Rank
+              </p>
+              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                {networkRankings.map((net, i: number) => {
+                  const medal =
+                    i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+                  return (
+                    <button
+                      key={net.network}
+                      onClick={() => {
+                        setSelectedNetworks(new Set([net.network]));
+                      }}
+                      className={cn(
+                        "shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl border transition-all hover:border-emerald-500/30",
+                        i < 3
+                          ? "bg-emerald-500/5 border-emerald-500/15"
+                          : "bg-white/5 border-white/5"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0",
+                          i < 3
+                            ? "bg-emerald-500 text-black"
+                            : "bg-white/10 text-gray-400"
+                        )}
+                      >
+                        {medal || i + 1}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-white whitespace-nowrap">
+                          {net.network}{" "}
+                          <span className="text-gray-500 font-normal">
+                            ({net.showCount})
+                          </span>
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          Avg rank{" "}
+                          <span className="text-emerald-400 font-bold">
+                            #{net.avgRank.toFixed(1)}
+                          </span>
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Network filter */}
           <div className="glass rounded-2xl p-5 border border-white/5 mb-8">
             <div className="flex items-center justify-between mb-3">
