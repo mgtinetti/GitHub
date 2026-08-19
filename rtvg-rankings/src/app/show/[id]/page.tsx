@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase/client";
 import { fetchUsers } from "@/lib/supabase/queries";
-import { REWATCH_ICONS } from "@/lib/constants";
+import { TIER_ICONS } from "@/lib/constants";
 import type { User } from "@/types";
 
 interface ShowData {
@@ -36,7 +36,7 @@ interface RankingRow {
   year: number;
   rank_position: number;
   score: number | null;
-  rewatchability: string | null;
+  tier: string | null;
   review: string | null;
   season_number: number;
 }
@@ -88,7 +88,7 @@ export default function ShowDetailPage() {
           year,
           rank_position,
           score,
-          rewatchability,
+          tier,
           review,
           seasons!inner (
             season_number,
@@ -108,7 +108,7 @@ export default function ShowDetailPage() {
             year: row.year,
             rank_position: row.rank_position,
             score: row.score ? parseFloat(row.score) : null,
-            rewatchability: row.rewatchability,
+            tier: row.tier,
             review: row.review,
             season_number: row.seasons.season_number,
           }))
@@ -397,14 +397,14 @@ export default function ShowDetailPage() {
                             </div>
                           )}
 
-                          {/* Rewatchability */}
-                          {entry.rewatchability && (
+                          {/* Tier */}
+                          {entry.tier && (
                             <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg shrink-0">
                               <span className="text-sm">
-                                {REWATCH_ICONS[entry.rewatchability] || ""}
+                                {TIER_ICONS[entry.tier] || ""}
                               </span>
                               <span className="text-[11px] font-semibold text-gray-400 hidden sm:inline">
-                                {entry.rewatchability}
+                                {entry.tier}
                               </span>
                             </div>
                           )}

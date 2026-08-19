@@ -117,7 +117,7 @@ export default function UserRankingsPage() {
           </div>
           <div className="glass rounded-xl p-4 text-center">
             <p className="text-2xl font-black text-amber-500">
-              {userRankings.filter((e) => e.rewatchability === "Instant Classic").length}
+              {userRankings.filter((e) => e.tier === "Instant Classic").length}
             </p>
             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">
               Instant Classics

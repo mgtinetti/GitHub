@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { YEARS, REWATCH_ICONS } from "@/lib/constants";
+import { YEARS, TIER_ICONS } from "@/lib/constants";
 import { fetchRankingsForYear, fetchActiveYears } from "@/lib/supabase/queries";
 import {
   generateConsensusRankings,
@@ -15,7 +15,7 @@ import type {
   User,
   ConsensusEntry,
   DisagreementEntry,
-  Rewatchability,
+  Tier,
 } from "@/types";
 
 interface UserStats {
@@ -26,7 +26,7 @@ interface UserStats {
   lowestScore: { title: string; score: number; season: number } | null;
   topGenres: { genre: string; count: number }[];
   topNetworks: { network: string; count: number }[];
-  rewatchBreakdown: Record<string, number>;
+  tierBreakdown: Record<string, number>;
   instantClassics: string[];
 }
 
@@ -74,7 +74,7 @@ function computeUserStats(
 
   const genreCounts: Record<string, number> = {};
   const networkCounts: Record<string, number> = {};
-  const rewatchBreakdown: Record<string, number> = {};
+  const tierBreakdown: Record<string, number> = {};
   const instantClassics: string[] = [];
 
   for (const entry of entries) {
@@ -85,11 +85,11 @@ function computeUserStats(
       networkCounts[entry.show.network] =
         (networkCounts[entry.show.network] || 0) + 1;
     }
-    if (entry.rewatchability) {
-      rewatchBreakdown[entry.rewatchability] =
-        (rewatchBreakdown[entry.rewatchability] || 0) + 1;
+    if (entry.tier) {
+      tierBreakdown[entry.tier] =
+        (tierBreakdown[entry.tier] || 0) + 1;
       if (
-        entry.rewatchability === "Instant Classic" &&
+        entry.tier === "Instant Classic" &&
         entry.show
       ) {
         instantClassics.push(entry.show.title);
@@ -114,7 +114,7 @@ function computeUserStats(
     lowestScore,
     topGenres,
     topNetworks,
-    rewatchBreakdown,
+    tierBreakdown,
     instantClassics,
   };
 }
@@ -525,23 +525,26 @@ export default function InsightsPage() {
                       </div>
                     </div>
 
-                    {/* Rewatchability */}
-                    {Object.keys(stats.rewatchBreakdown).length > 0 && (
+                    {/* Tier */}
+                    {Object.keys(stats.tierBreakdown).length > 0 && (
                       <div className="mt-4">
                         <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">
-                          Rewatchability
+                          Tier
                         </p>
                         <div className="space-y-1.5">
                           {(
                             [
                               "Instant Classic",
-                              "High",
-                              "Medium",
-                              "Low",
-                            ] as Rewatchability[]
+                              "Great",
+                              "Very Good",
+                              "Good",
+                              "Average",
+                              "Bad",
+                              "ASS",
+                            ] as Tier[]
                           ).map((level) => {
                             const count =
-                              stats.rewatchBreakdown[level] || 0;
+                              stats.tierBreakdown[level] || 0;
                             if (count === 0) return null;
                             const pct =
                               (count / stats.totalShows) * 100;
@@ -551,7 +554,7 @@ export default function InsightsPage() {
                                 className="flex items-center gap-2 text-xs"
                               >
                                 <span className="w-4 text-center">
-                                  {REWATCH_ICONS[level]}
+                                  {TIER_ICONS[level]}
                                 </span>
                                 <span className="w-28 text-gray-400 shrink-0 truncate">
                                   {level}
@@ -1141,7 +1144,7 @@ function generateFunFacts(
   if (sharedICs.length > 0) {
     const [show, names] = sharedICs[0];
     facts.push(
-      `${names.join(" and ")} both rated ${show} as an "Instant Classic" for rewatchability.`,
+      `${names.join(" and ")} both rated ${show} as an "Instant Classic" tier.`,
     );
   }
 

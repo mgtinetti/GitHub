@@ -92,7 +92,7 @@ export default function AdminPage() {
                     Add, reorder, and score your TV season rankings
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Search TMDB for shows, drag to reorder, set scores and rewatchability
+                    Search TMDB for shows, drag to reorder, set scores and tiers
                   </p>
                 </div>
                 <svg

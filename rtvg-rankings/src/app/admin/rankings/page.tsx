@@ -10,7 +10,7 @@ import SeasonPicker from "@/components/manage/SeasonPicker";
 import RankingList, { type ManagedEntry } from "@/components/manage/RankingList";
 import { YEARS } from "@/lib/constants";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
-import type { Rewatchability } from "@/types";
+import type { Tier } from "@/types";
 
 interface SelectedShow {
   tmdbId: number;
@@ -66,7 +66,7 @@ function ManageRankingsContent() {
         id,
         rank_position,
         score,
-        rewatchability,
+        tier,
         review,
         season_id,
         seasons!inner (
@@ -115,7 +115,7 @@ function ManageRankingsContent() {
           airDate: season?.air_date_start || null,
           episodeCount: season?.episode_count || 0,
           score: row.score,
-          rewatchability: row.rewatchability,
+          tier: row.tier,
           review: row.review,
           dbId: row.id,
           showDbId: show?.id,
@@ -244,7 +244,7 @@ function ManageRankingsContent() {
       airDate: data.airDate,
       episodeCount: data.episodeCount,
       score: null,
-      rewatchability: null,
+      tier: null,
       review: null,
       showDbId,
       seasonDbId,
@@ -297,7 +297,7 @@ function ManageRankingsContent() {
           year,
           rank_position: index + 1,
           score: entry.score,
-          rewatchability: entry.rewatchability,
+          tier: entry.tier,
           review: entry.review,
         }));
 

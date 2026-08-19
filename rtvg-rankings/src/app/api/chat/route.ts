@@ -22,7 +22,7 @@ async function fetchRankingsContext(): Promise<string> {
       supabase
         .from("ranking_entries")
         .select(
-          `user_id, year, rank_position, score, rewatchability, review,
+          `user_id, year, rank_position, score, tier, review,
          seasons!inner(season_number, shows!inner(title, genres, network))`
         )
         .order("year", { ascending: false })
@@ -67,7 +67,7 @@ async function fetchRankingsContext(): Promise<string> {
       show: r.seasons?.shows?.title || "Unknown",
       season: r.seasons?.season_number,
       score: r.score,
-      rewatchability: r.rewatchability,
+      tier: r.tier,
       review: r.review,
       genres: r.seasons?.shows?.genres || [],
       network: r.seasons?.shows?.network || "Unknown",
@@ -83,7 +83,7 @@ async function fetchRankingsContext(): Promise<string> {
       for (const e of entries) {
         context += `  #${e.rank} ${e.show} S${e.season}`;
         if (e.score) context += ` | Score: ${e.score}/10`;
-        if (e.rewatchability) context += ` | Rewatch: ${e.rewatchability}`;
+        if (e.tier) context += ` | Tier: ${e.tier}`;
         if (e.review) context += ` | Review: "${e.review}"`;
         context += ` | ${e.network} | ${e.genres.join(", ")}`;
         context += "\n";

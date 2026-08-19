@@ -6,18 +6,24 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://rtvgranking
 export const YEARS = [2026, 2025, 2024, 2023, 2022, 2021] as const;
 export const CURRENT_YEAR = new Date().getFullYear();
 
-export const REWATCH_LABELS: Record<string, string> = {
-  Low: "One and done",
-  Medium: "Would rewatch highlights",
-  High: "Would rewatch in full",
-  "Instant Classic": "Have or will rewatch multiple times",
+export const TIER_LABELS: Record<string, string> = {
+  "Instant Classic": "All-time great, will rewatch multiple times",
+  Great: "Exceptional season",
+  "Very Good": "Strong season, above average",
+  Good: "Solid, enjoyable season",
+  Average: "Fine but forgettable",
+  Bad: "Below average",
+  ASS: "Terrible",
 };
 
-export const REWATCH_ICONS: Record<string, string> = {
-  Low: "⏹️",
-  Medium: "⏯️",
-  High: "🔄",
+export const TIER_ICONS: Record<string, string> = {
   "Instant Classic": "⭐",
+  Great: "🔥",
+  "Very Good": "💪",
+  Good: "👍",
+  Average: "😐",
+  Bad: "👎",
+  ASS: "💩",
 };
 
 export const PRESET_AWARD_CATEGORIES = [

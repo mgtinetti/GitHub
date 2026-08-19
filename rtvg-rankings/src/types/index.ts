@@ -1,4 +1,4 @@
-export type Rewatchability = "Low" | "Medium" | "High" | "Instant Classic";
+export type Tier = "Instant Classic" | "Great" | "Very Good" | "Good" | "Average" | "Bad" | "ASS";
 
 export type UserRole = "admin" | "contributor";
 
@@ -39,7 +39,7 @@ export interface RankingEntry {
   season_id: string;
   year: number;
   rank_position: number;
-  rewatchability: Rewatchability | null;
+  tier: Tier | null;
   score: number | null;
   review: string | null;
   created_at: string;

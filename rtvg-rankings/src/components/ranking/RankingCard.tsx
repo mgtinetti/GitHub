@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { REWATCH_ICONS } from "@/lib/constants";
+import { TIER_ICONS } from "@/lib/constants";
 import type { RankingEntry } from "@/types";
 
 interface RankingCardProps {
@@ -137,13 +137,13 @@ export default function RankingCard({
                 {season.episode_count}
               </span>
             </div>
-            {entry.rewatchability && (
+            {entry.tier && (
               <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg">
-                <span className="text-sm" title={entry.rewatchability}>
-                  {REWATCH_ICONS[entry.rewatchability]}
+                <span className="text-sm" title={entry.tier}>
+                  {TIER_ICONS[entry.tier]}
                 </span>
                 <span className="font-semibold text-gray-300 hidden sm:inline">
-                  {entry.rewatchability}
+                  {entry.tier}
                 </span>
               </div>
             )}

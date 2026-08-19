@@ -1,8 +1,8 @@
 "use client";
 
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
-import { TMDB_IMAGE_BASE, REWATCH_ICONS } from "@/lib/constants";
-import type { Rewatchability } from "@/types";
+import { TMDB_IMAGE_BASE, TIER_ICONS } from "@/lib/constants";
+import type { Tier } from "@/types";
 
 export interface ManagedEntry {
   localId: string;
@@ -16,7 +16,7 @@ export interface ManagedEntry {
   airDate: string | null;
   episodeCount: number;
   score: number | null;
-  rewatchability: Rewatchability | null;
+  tier: Tier | null;
   review: string | null;
   // If this came from Supabase
   dbId?: string;
@@ -31,7 +31,7 @@ interface RankingListProps {
   onUpdateEntry: (localId: string, updates: Partial<ManagedEntry>) => void;
 }
 
-const REWATCH_OPTIONS: Rewatchability[] = ["Low", "Medium", "High", "Instant Classic"];
+const TIER_OPTIONS: Tier[] = ["Instant Classic", "Great", "Very Good", "Good", "Average", "Bad", "ASS"];
 
 export default function RankingList({
   entries,
@@ -137,7 +137,7 @@ export default function RankingList({
                           </button>
                         </div>
 
-                        {/* Score + Rewatchability inline */}
+                        {/* Score + Tier inline */}
                         <div className="flex items-center gap-3 mt-2">
                           <div className="flex items-center gap-1.5">
                             <label className="text-[10px] text-gray-500 uppercase">Score</label>
@@ -157,20 +157,20 @@ export default function RankingList({
                             />
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <label className="text-[10px] text-gray-500 uppercase">Rewatch</label>
+                            <label className="text-[10px] text-gray-500 uppercase">Tier</label>
                             <select
-                              value={entry.rewatchability || ""}
+                              value={entry.tier || ""}
                               onChange={(e) =>
                                 onUpdateEntry(entry.localId, {
-                                  rewatchability: (e.target.value || null) as Rewatchability | null,
+                                  tier: (e.target.value || null) as Tier | null,
                                 })
                               }
                               className="px-2 py-1 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 focus:outline-none focus:border-amber-500/50 appearance-none cursor-pointer"
                             >
                               <option value="">—</option>
-                              {REWATCH_OPTIONS.map((opt) => (
+                              {TIER_OPTIONS.map((opt) => (
                                 <option key={opt} value={opt}>
-                                  {REWATCH_ICONS[opt]} {opt}
+                                  {TIER_ICONS[opt]} {opt}
                                 </option>
                               ))}
                             </select>
