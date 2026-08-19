@@ -295,3 +295,85 @@ export async function fetchNonRankable(year: number): Promise<{
 
   return { items, users };
 }
+
+export interface PipelineItem {
+  id: string;
+  user_id: string;
+  show_id: string;
+  season_number: number;
+  sort_order: number;
+  added_at: string;
+  show: {
+    id: string;
+    tmdb_id: number;
+    title: string;
+    poster_url: string | null;
+    network: string;
+  };
+}
+
+export async function fetchPipeline(): Promise<{
+  items: Record<string, PipelineItem[]>;
+  users: User[];
+}> {
+  const [usersResult, pipelineResult] = await Promise.all([
+    supabase.from("users").select("*").order("created_at", { ascending: true }),
+    supabase
+      .from("pipeline")
+      .select(
+        `
+        id,
+        user_id,
+        show_id,
+        season_number,
+        sort_order,
+        added_at,
+        shows!inner (
+          id,
+          tmdb_id,
+          title,
+          poster_url,
+          network
+        )
+      `
+      )
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  const users: User[] = usersResult.data || [];
+  const rawItems = pipelineResult.data || [];
+
+  if (pipelineResult.error) {
+    console.error("Failed to fetch pipeline:", pipelineResult.error.message);
+  }
+
+  const items: Record<string, PipelineItem[]> = {};
+  for (const user of users) {
+    items[user.id] = [];
+  }
+
+  for (const row of rawItems as any[]) {
+    const show = row.shows;
+    const item: PipelineItem = {
+      id: row.id,
+      user_id: row.user_id,
+      show_id: row.show_id,
+      season_number: row.season_number,
+      sort_order: row.sort_order,
+      added_at: row.added_at,
+      show: {
+        id: show.id,
+        tmdb_id: show.tmdb_id,
+        title: show.title,
+        poster_url: show.poster_url,
+        network: show.network || "Unknown",
+      },
+    };
+    if (!items[row.user_id]) {
+      items[row.user_id] = [];
+    }
+    items[row.user_id].push(item);
+  }
+
+  return { items, users };
+}

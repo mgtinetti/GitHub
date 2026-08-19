@@ -3,39 +3,77 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { fetchCurrentlyWatching } from "@/lib/supabase/queries";
-import type { CurrentlyWatchingItem } from "@/lib/supabase/queries";
+import { fetchCurrentlyWatching, fetchPipeline } from "@/lib/supabase/queries";
+import type { CurrentlyWatchingItem, PipelineItem } from "@/lib/supabase/queries";
 import type { User } from "@/types";
+
+type ViewMode = "watching" | "pipeline";
 
 export default function WatchingPage() {
   const [watching, setWatching] = useState<Record<string, CurrentlyWatchingItem[]>>({});
+  const [pipeline, setPipeline] = useState<Record<string, PipelineItem[]>>({});
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("");
+  const [viewMode, setViewMode] = useState<ViewMode>("watching");
 
   useEffect(() => {
-    fetchCurrentlyWatching().then(({ items, users: u }) => {
-      setWatching(items);
-      setUsers(u);
-      if (u.length > 0) setActiveTab(u[0].id);
-      setLoading(false);
-    });
+    Promise.all([fetchCurrentlyWatching(), fetchPipeline()]).then(
+      ([watchingData, pipelineData]) => {
+        setWatching(watchingData.items);
+        setPipeline(pipelineData.items);
+        setUsers(watchingData.users);
+        if (watchingData.users.length > 0) setActiveTab(watchingData.users[0].id);
+        setLoading(false);
+      }
+    );
   }, []);
 
-  const hasAny = Object.values(watching).some((items) => items.length > 0);
+  const currentItems = viewMode === "watching" ? watching : pipeline;
+  const hasAny = Object.values(currentItems).some((items) => items.length > 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 animate-fade-in">
       <div className="text-center mb-12">
         <span className="text-amber-500 font-mono uppercase tracking-[0.5em] text-xs mb-4 block">
-          Live
+          {viewMode === "watching" ? "Live" : "Up Next"}
         </span>
         <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase mb-3">
-          Currently <span className="text-amber-500">Watching</span>
+          {viewMode === "watching" ? (
+            <>Currently <span className="text-amber-500">Watching</span></>
+          ) : (
+            <><span className="text-amber-500">Pipeline</span></>
+          )}
         </h1>
-        <p className="text-gray-400 max-w-xl mx-auto">
-          What the crew is tuned into right now.
+        <p className="text-gray-400 max-w-xl mx-auto mb-6">
+          {viewMode === "watching"
+            ? "What the crew is tuned into right now."
+            : "Shows the crew plans to watch next."}
         </p>
+
+        {/* View mode toggle */}
+        <div className="inline-flex bg-white/5 p-1 rounded-xl glass">
+          <button
+            onClick={() => setViewMode("watching")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+              viewMode === "watching"
+                ? "bg-amber-500 text-black shadow-lg"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            Watching
+          </button>
+          <button
+            onClick={() => setViewMode("pipeline")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+              viewMode === "pipeline"
+                ? "bg-amber-500 text-black shadow-lg"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            Pipeline
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -45,13 +83,17 @@ export default function WatchingPage() {
         </div>
       ) : !hasAny ? (
         <div className="glass rounded-3xl p-12 text-center">
-          <p className="text-gray-500 text-lg">Nobody is watching anything right now.</p>
+          <p className="text-gray-500 text-lg">
+            {viewMode === "watching"
+              ? "Nobody is watching anything right now."
+              : "No shows in the pipeline yet."}
+          </p>
         </div>
       ) : (
         <>
         {/* Mobile user tabs */}
         <div className="flex md:hidden mb-6 bg-white/5 p-1 rounded-xl glass">
-          {users.filter((u) => (watching[u.id] || []).length > 0).map((user) => (
+          {users.filter((u) => (currentItems[u.id] || []).length > 0).map((user) => (
             <button
               key={user.id}
               onClick={() => setActiveTab(user.id)}
@@ -68,7 +110,7 @@ export default function WatchingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {users.map((user) => {
-            const items = watching[user.id] || [];
+            const items = currentItems[user.id] || [];
             if (items.length === 0) return null;
             return (
               <div
