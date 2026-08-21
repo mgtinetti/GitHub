@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { supabase } from "@/lib/supabase/client";
 
 interface SearchRanking {
   user_id: string;
@@ -49,6 +50,78 @@ export default function SiteSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  async function searchShows(q: string) {
+    const { data: shows } = await supabase
+      .from("shows")
+      .select("id, title, poster_url, network, genres")
+      .ilike("title", `%${q}%`)
+      .limit(10);
+
+    if (!shows || shows.length === 0) return [];
+
+    const showIds = shows.map((s) => s.id);
+
+    const [seasonsResult, usersResult] = await Promise.all([
+      supabase
+        .from("seasons")
+        .select("id, show_id, season_number")
+        .in("show_id", showIds),
+      supabase.from("users").select("id, display_name, avatar_url"),
+    ]);
+
+    const seasons = seasonsResult.data || [];
+    const users = usersResult.data || [];
+    const userMap = new Map(users.map((u: any) => [u.id, u]));
+
+    let rankings: any[] = [];
+    if (seasons.length > 0) {
+      const seasonIds = seasons.map((s: any) => s.id);
+      const { data } = await supabase
+        .from("ranking_entries")
+        .select("id, user_id, season_id, year, rank_position, score, tier")
+        .in("season_id", seasonIds)
+        .order("year", { ascending: false })
+        .order("rank_position", { ascending: true });
+      rankings = data || [];
+    }
+
+    const seasonMap = new Map(seasons.map((s: any) => [s.id, s]));
+
+    const results: SearchResult[] = shows.map((show: any) => {
+      const showSeasonIds = seasons
+        .filter((s: any) => s.show_id === show.id)
+        .map((s: any) => s.id);
+
+      const showRankings = rankings
+        .filter((r: any) => showSeasonIds.includes(r.season_id))
+        .map((r: any) => {
+          const season = seasonMap.get(r.season_id);
+          return {
+            user_id: r.user_id,
+            user_name: (userMap.get(r.user_id) as any)?.display_name || "Unknown",
+            avatar_url: (userMap.get(r.user_id) as any)?.avatar_url || null,
+            year: r.year,
+            rank_position: r.rank_position,
+            score: r.score ? parseFloat(r.score) : null,
+            tier: r.tier,
+            season_number: season?.season_number || 1,
+          };
+        });
+
+      return {
+        id: show.id,
+        title: show.title,
+        poster_url: show.poster_url,
+        network: show.network || "Unknown",
+        genres: show.genres || [],
+        rankings: showRankings,
+      };
+    });
+
+    results.sort((a, b) => b.rankings.length - a.rankings.length);
+    return results;
+  }
+
   function handleChange(value: string) {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -62,9 +135,8 @@ export default function SiteSearch() {
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(value.trim())}`);
-        const data = await res.json();
-        setResults(data.results || []);
+        const data = await searchShows(value.trim());
+        setResults(data);
         setOpen(true);
       } catch {
         setResults([]);
