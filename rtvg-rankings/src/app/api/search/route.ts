@@ -24,47 +24,52 @@ export async function GET(req: NextRequest) {
 
   const showIds = shows.map((s) => s.id);
 
-  const [rankingsResult, usersResult] = await Promise.all([
+  const [seasonsResult, usersResult] = await Promise.all([
     supabase
-      .from("ranking_entries")
-      .select(
-        `
-        id,
-        user_id,
-        year,
-        rank_position,
-        score,
-        tier,
-        seasons!inner (
-          season_number,
-          show_id
-        )
-      `
-      )
-      .in("seasons.show_id", showIds)
-      .order("year", { ascending: false })
-      .order("rank_position", { ascending: true }),
+      .from("seasons")
+      .select("id, show_id, season_number")
+      .in("show_id", showIds),
     supabase.from("users").select("id, display_name, avatar_url"),
   ]);
 
-  const rankings = (rankingsResult.data as any[]) || [];
+  const seasons = seasonsResult.data || [];
   const users = usersResult.data || [];
-
   const userMap = new Map(users.map((u) => [u.id, u]));
 
+  let rankings: any[] = [];
+  if (seasons.length > 0) {
+    const seasonIds = seasons.map((s) => s.id);
+    const { data } = await supabase
+      .from("ranking_entries")
+      .select("id, user_id, season_id, year, rank_position, score, tier")
+      .in("season_id", seasonIds)
+      .order("year", { ascending: false })
+      .order("rank_position", { ascending: true });
+    rankings = data || [];
+  }
+
+  const seasonMap = new Map(seasons.map((s) => [s.id, s]));
+
   const results = shows.map((show) => {
+    const showSeasonIds = seasons
+      .filter((s) => s.show_id === show.id)
+      .map((s) => s.id);
+
     const showRankings = rankings
-      .filter((r) => r.seasons?.show_id === show.id)
-      .map((r) => ({
-        user_id: r.user_id,
-        user_name: userMap.get(r.user_id)?.display_name || "Unknown",
-        avatar_url: userMap.get(r.user_id)?.avatar_url || null,
-        year: r.year,
-        rank_position: r.rank_position,
-        score: r.score ? parseFloat(r.score) : null,
-        tier: r.tier,
-        season_number: r.seasons.season_number,
-      }));
+      .filter((r) => showSeasonIds.includes(r.season_id))
+      .map((r) => {
+        const season = seasonMap.get(r.season_id);
+        return {
+          user_id: r.user_id,
+          user_name: userMap.get(r.user_id)?.display_name || "Unknown",
+          avatar_url: userMap.get(r.user_id)?.avatar_url || null,
+          year: r.year,
+          rank_position: r.rank_position,
+          score: r.score ? parseFloat(r.score) : null,
+          tier: r.tier,
+          season_number: season?.season_number || 1,
+        };
+      });
 
     return {
       id: show.id,
