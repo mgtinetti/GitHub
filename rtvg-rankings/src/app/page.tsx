@@ -6,6 +6,7 @@ import Image from "next/image";
 import { fetchRankingsForYear, fetchActiveYears, fetchCurrentlyWatching } from "@/lib/supabase/queries";
 import { YEARS } from "@/lib/constants";
 import type { User } from "@/types";
+import SiteSearch from "@/components/SiteSearch";
 
 export default function HomePage() {
   const [years, setYears] = useState<number[]>([...YEARS]);
@@ -115,6 +116,9 @@ export default function HomePage() {
             >
               Browse by Service
             </Link>
+          </div>
+          <div className="mt-8 md:mt-10">
+            <SiteSearch />
           </div>
         </div>
       </section>
