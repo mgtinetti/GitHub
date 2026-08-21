@@ -51,62 +51,46 @@ export default function SiteSearch() {
   }, []);
 
   async function searchShows(q: string) {
-    const { data: shows } = await supabase
+    const { data: shows, error } = await supabase
       .from("shows")
-      .select("id, title, poster_url, network, genres")
+      .select(`
+        id, title, poster_url, network, genres,
+        seasons(
+          id, season_number,
+          ranking_entries(
+            id, user_id, year, rank_position, score, tier,
+            users(id, display_name, avatar_url)
+          )
+        )
+      `)
       .ilike("title", `%${q}%`)
       .limit(10);
 
-    if (!shows || shows.length === 0) return [];
-
-    const showIds = shows.map((s) => s.id);
-
-    const [seasonsResult, usersResult] = await Promise.all([
-      supabase
-        .from("seasons")
-        .select("id, show_id, season_number")
-        .in("show_id", showIds),
-      supabase.from("users").select("id, display_name, avatar_url"),
-    ]);
-
-    const seasons = seasonsResult.data || [];
-    const users = usersResult.data || [];
-    const userMap = new Map(users.map((u: any) => [u.id, u]));
-
-    let rankings: any[] = [];
-    if (seasons.length > 0) {
-      const seasonIds = seasons.map((s: any) => s.id);
-      const { data } = await supabase
-        .from("ranking_entries")
-        .select("id, user_id, season_id, year, rank_position, score, tier")
-        .in("season_id", seasonIds)
-        .order("year", { ascending: false })
-        .order("rank_position", { ascending: true });
-      rankings = data || [];
+    if (error) {
+      console.error("[Search] query error:", error.message);
+      return [];
     }
 
-    const seasonMap = new Map(seasons.map((s: any) => [s.id, s]));
+    if (!shows || shows.length === 0) return [];
 
     const results: SearchResult[] = shows.map((show: any) => {
-      const showSeasonIds = seasons
-        .filter((s: any) => s.show_id === show.id)
-        .map((s: any) => s.id);
-
-      const showRankings = rankings
-        .filter((r: any) => showSeasonIds.includes(r.season_id))
-        .map((r: any) => {
-          const season = seasonMap.get(r.season_id);
-          return {
-            user_id: r.user_id,
-            user_name: (userMap.get(r.user_id) as any)?.display_name || "Unknown",
-            avatar_url: (userMap.get(r.user_id) as any)?.avatar_url || null,
-            year: r.year,
-            rank_position: r.rank_position,
-            score: r.score ? parseFloat(r.score) : null,
-            tier: r.tier,
-            season_number: season?.season_number || 1,
-          };
-        });
+      const allRankings: SearchRanking[] = [];
+      for (const season of show.seasons || []) {
+        for (const entry of season.ranking_entries || []) {
+          const user = entry.users;
+          allRankings.push({
+            user_id: entry.user_id,
+            user_name: user?.display_name || "Unknown",
+            avatar_url: user?.avatar_url || null,
+            year: entry.year,
+            rank_position: entry.rank_position,
+            score: entry.score ? parseFloat(entry.score) : null,
+            tier: entry.tier,
+            season_number: season.season_number,
+          });
+        }
+      }
+      allRankings.sort((a, b) => b.year - a.year || a.rank_position - b.rank_position);
 
       return {
         id: show.id,
@@ -114,7 +98,7 @@ export default function SiteSearch() {
         poster_url: show.poster_url,
         network: show.network || "Unknown",
         genres: show.genres || [],
-        rankings: showRankings,
+        rankings: allRankings,
       };
     });
 
@@ -138,7 +122,8 @@ export default function SiteSearch() {
         const data = await searchShows(value.trim());
         setResults(data);
         setOpen(true);
-      } catch {
+      } catch (err) {
+        console.error("[Search] unexpected error:", err);
         setResults([]);
       }
       setLoading(false);
