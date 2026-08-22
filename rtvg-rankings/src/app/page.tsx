@@ -78,7 +78,7 @@ export default function HomePage() {
   return (
     <div className="animate-fade-in">
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="relative z-20 md:h-[55vh] flex items-center justify-center md:overflow-hidden">
+      <section className="relative z-20 md:h-[55vh] flex items-center justify-center">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-b from-bg-surface/30 to-bg-primary" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(245,158,11,0.08)_0%,_transparent_70%)]" />
