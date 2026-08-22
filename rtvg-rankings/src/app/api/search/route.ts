@@ -7,62 +7,68 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  const supabase = createServerClient();
+  try {
+    const supabase = createServerClient();
 
-  const { data: shows, error } = await supabase
-    .from("shows")
-    .select(`
-      id, title, poster_url, network, genres,
-      seasons(
-        id, season_number,
-        ranking_entries(
-          id, user_id, year, rank_position, score, tier,
-          users(id, display_name, avatar_url)
+    const { data: shows, error } = await supabase
+      .from("shows")
+      .select(`
+        id, title, poster_url, network, genres,
+        seasons(
+          id, season_number,
+          ranking_entries(
+            id, user_id, year, rank_position, score, tier,
+            users(id, display_name, avatar_url)
+          )
         )
-      )
-    `)
-    .ilike("title", `%${q}%`)
-    .limit(10);
+      `)
+      .ilike("title", `%${q}%`)
+      .limit(10);
 
-  if (error) {
-    console.error("[Search API] query error:", error.message);
-    return NextResponse.json({ results: [], error: error.message }, { status: 500 });
-  }
-
-  if (!shows || shows.length === 0) {
-    return NextResponse.json({ results: [] });
-  }
-
-  const results = shows.map((show: any) => {
-    const allRankings: any[] = [];
-    for (const season of show.seasons || []) {
-      for (const entry of season.ranking_entries || []) {
-        const user = entry.users;
-        allRankings.push({
-          user_id: entry.user_id,
-          user_name: user?.display_name || "Unknown",
-          avatar_url: user?.avatar_url || null,
-          year: entry.year,
-          rank_position: entry.rank_position,
-          score: entry.score ? parseFloat(entry.score) : null,
-          tier: entry.tier,
-          season_number: season.season_number,
-        });
-      }
+    if (error) {
+      return NextResponse.json({ results: [], error: error.message });
     }
-    allRankings.sort((a: any, b: any) => b.year - a.year || a.rank_position - b.rank_position);
 
-    return {
-      id: show.id,
-      title: show.title,
-      poster_url: show.poster_url,
-      network: show.network || "Unknown",
-      genres: show.genres || [],
-      rankings: allRankings,
-    };
-  });
+    if (!shows || shows.length === 0) {
+      return NextResponse.json({ results: [] });
+    }
 
-  results.sort((a: any, b: any) => b.rankings.length - a.rankings.length);
+    const results = shows.map((show: any) => {
+      const allRankings: any[] = [];
+      for (const season of show.seasons || []) {
+        for (const entry of season.ranking_entries || []) {
+          const user = entry.users;
+          allRankings.push({
+            user_id: entry.user_id,
+            user_name: user?.display_name || "Unknown",
+            avatar_url: user?.avatar_url || null,
+            year: entry.year,
+            rank_position: entry.rank_position,
+            score: entry.score ? parseFloat(entry.score) : null,
+            tier: entry.tier,
+            season_number: season.season_number,
+          });
+        }
+      }
+      allRankings.sort((a: any, b: any) => b.year - a.year || a.rank_position - b.rank_position);
 
-  return NextResponse.json({ results });
+      return {
+        id: show.id,
+        title: show.title,
+        poster_url: show.poster_url,
+        network: show.network || "Unknown",
+        genres: show.genres || [],
+        rankings: allRankings,
+      };
+    });
+
+    results.sort((a: any, b: any) => b.rankings.length - a.rankings.length);
+
+    return NextResponse.json({ results });
+  } catch (err: any) {
+    return NextResponse.json(
+      { results: [], error: err?.message || "Unknown server error" },
+      { status: 500 }
+    );
+  }
 }

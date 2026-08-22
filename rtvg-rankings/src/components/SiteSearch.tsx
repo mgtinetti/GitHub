@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { supabase } from "@/lib/supabase/client";
-
 interface SearchRanking {
   user_id: string;
   user_name: string;
@@ -50,60 +48,14 @@ export default function SiteSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  async function searchShows(q: string) {
-    const { data: shows, error } = await supabase
-      .from("shows")
-      .select(`
-        id, title, poster_url, network, genres,
-        seasons(
-          id, season_number,
-          ranking_entries(
-            id, user_id, year, rank_position, score, tier,
-            users(id, display_name, avatar_url)
-          )
-        )
-      `)
-      .ilike("title", `%${q}%`)
-      .limit(10);
-
-    if (error) {
-      console.error("[Search] query error:", error.message);
+  async function searchShows(q: string): Promise<SearchResult[]> {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) {
+      console.error("[Search] API error:", res.status, await res.text());
       return [];
     }
-
-    if (!shows || shows.length === 0) return [];
-
-    const results: SearchResult[] = shows.map((show: any) => {
-      const allRankings: SearchRanking[] = [];
-      for (const season of show.seasons || []) {
-        for (const entry of season.ranking_entries || []) {
-          const user = entry.users;
-          allRankings.push({
-            user_id: entry.user_id,
-            user_name: user?.display_name || "Unknown",
-            avatar_url: user?.avatar_url || null,
-            year: entry.year,
-            rank_position: entry.rank_position,
-            score: entry.score ? parseFloat(entry.score) : null,
-            tier: entry.tier,
-            season_number: season.season_number,
-          });
-        }
-      }
-      allRankings.sort((a, b) => b.year - a.year || a.rank_position - b.rank_position);
-
-      return {
-        id: show.id,
-        title: show.title,
-        poster_url: show.poster_url,
-        network: show.network || "Unknown",
-        genres: show.genres || [],
-        rankings: allRankings,
-      };
-    });
-
-    results.sort((a, b) => b.rankings.length - a.rankings.length);
-    return results;
+    const json = await res.json();
+    return json.results || [];
   }
 
   function handleChange(value: string) {
