@@ -124,7 +124,7 @@ export default function SiteSearch() {
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 glass rounded-xl border border-white/10 shadow-2xl shadow-black/50 max-h-[70vh] overflow-y-auto">
+        <div className="absolute z-50 w-full mt-2 rounded-xl border border-white/10 shadow-2xl shadow-black/50 max-h-[70vh] overflow-y-auto bg-[#1e1e30]">
           {results.map((result) => {
             const isExpanded = expandedId === result.id;
             const yearGroups = groupByYear(result.rankings);
@@ -251,7 +251,7 @@ export default function SiteSearch() {
       )}
 
       {open && !loading && query.trim().length >= 2 && results.length === 0 && (
-        <div className="absolute z-50 w-full mt-2 glass rounded-xl border border-white/10 shadow-2xl shadow-black/50 p-6 text-center">
+        <div className="absolute z-50 w-full mt-2 rounded-xl border border-white/10 shadow-2xl shadow-black/50 p-6 text-center bg-[#1e1e30]">
           <p className="text-gray-500 text-sm">No shows found for &ldquo;{query}&rdquo;</p>
         </div>
       )}
