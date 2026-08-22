@@ -170,6 +170,7 @@ export async function fetchCurrentlyWatching(): Promise<{
         user_id,
         show_id,
         season_number,
+        sort_order,
         added_at,
         shows!inner (
           id,
@@ -180,7 +181,7 @@ export async function fetchCurrentlyWatching(): Promise<{
         )
       `
       )
-      .order("added_at", { ascending: false }),
+      .order("sort_order", { ascending: true }),
   ]);
 
   const users: User[] = usersResult.data || [];
