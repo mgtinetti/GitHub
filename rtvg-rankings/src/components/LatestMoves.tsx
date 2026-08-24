@@ -38,7 +38,7 @@ export default function LatestMoves() {
           `)
           .gte("updated_at", since)
           .order("updated_at", { ascending: false })
-          .limit(15),
+          .limit(100),
         supabase
           .from("currently_watching")
           .select(`
@@ -82,15 +82,39 @@ export default function LatestMoves() {
 
       moves.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
+      // Deduplicate: keep one entry per user+show combination
       const seen = new Set<string>();
       const deduped = moves.filter((m) => {
-        const key = `${m.userName}-${m.action}-${m.showTitle}`;
+        const key = `${m.userName}-${m.showTitle}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
 
-      setItems(deduped.slice(0, 12));
+      // Ensure all active users are represented by interleaving
+      const byUser = new Map<string, MoveItem[]>();
+      for (const m of deduped) {
+        const list = byUser.get(m.userName) || [];
+        list.push(m);
+        byUser.set(m.userName, list);
+      }
+      const interleaved: MoveItem[] = [];
+      const cursors = new Map<string, number>();
+      for (const name of byUser.keys()) cursors.set(name, 0);
+      while (interleaved.length < 12) {
+        let added = false;
+        for (const [name, list] of byUser) {
+          const idx = cursors.get(name)!;
+          if (idx < list.length) {
+            interleaved.push(list[idx]);
+            cursors.set(name, idx + 1);
+            added = true;
+          }
+        }
+        if (!added) break;
+      }
+
+      setItems(interleaved.slice(0, 12));
     }
     load();
   }, []);
