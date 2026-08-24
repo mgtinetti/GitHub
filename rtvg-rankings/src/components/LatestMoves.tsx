@@ -1,0 +1,138 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
+
+interface MoveItem {
+  id: string;
+  userName: string;
+  action: "ranked" | "started";
+  showTitle: string;
+  seasonNumber: number;
+  rankPosition?: number;
+  timestamp: string;
+}
+
+const USER_COLORS: Record<string, string> = {
+  Tinetti: "var(--ticker-tinetti)",
+  Chubbs: "var(--ticker-chubbs)",
+  Poteete: "var(--ticker-poteete)",
+};
+
+export default function LatestMoves() {
+  const [items, setItems] = useState<MoveItem[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      const [rankingsRes, watchingRes, usersRes] = await Promise.all([
+        supabase
+          .from("ranking_entries")
+          .select(`
+            id, user_id, rank_position, created_at,
+            seasons!inner(
+              season_number,
+              shows!inner(title)
+            )
+          `)
+          .order("created_at", { ascending: false })
+          .limit(15),
+        supabase
+          .from("currently_watching")
+          .select(`
+            id, user_id, season_number, added_at,
+            shows!inner(title)
+          `)
+          .order("added_at", { ascending: false })
+          .limit(10),
+        supabase.from("users").select("id, display_name"),
+      ]);
+
+      const userMap = new Map(
+        (usersRes.data || []).map((u: any) => [u.id, u.display_name])
+      );
+
+      const moves: MoveItem[] = [];
+
+      for (const r of (rankingsRes.data || []) as any[]) {
+        moves.push({
+          id: `r-${r.id}`,
+          userName: userMap.get(r.user_id) || "Unknown",
+          action: "ranked",
+          showTitle: r.seasons?.shows?.title || "Unknown",
+          seasonNumber: r.seasons?.season_number || 1,
+          rankPosition: r.rank_position,
+          timestamp: r.created_at,
+        });
+      }
+
+      for (const w of (watchingRes.data || []) as any[]) {
+        moves.push({
+          id: `w-${w.id}`,
+          userName: userMap.get(w.user_id) || "Unknown",
+          action: "started",
+          showTitle: w.shows?.title || "Unknown",
+          seasonNumber: w.season_number,
+          timestamp: w.added_at,
+        });
+      }
+
+      moves.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      const seen = new Set<string>();
+      const deduped = moves.filter((m) => {
+        const key = `${m.userName}-${m.action}-${m.showTitle}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      setItems(deduped.slice(0, 12));
+    }
+    load();
+  }, []);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="ticker-strip">
+      <span className="ticker-label">Latest Moves</span>
+      <div className="ticker-marquee-wrap">
+        <div className="ticker-fade-l" />
+        <div className="ticker-fade-r" />
+        <div className="ticker-marquee">
+          {[...items, ...items].map((item, i) => (
+            <span key={`${item.id}-${i}`} className="ticker-item">
+              <span
+                className="ticker-avatar"
+                style={{ color: USER_COLORS[item.userName] || "var(--ticker-muted)", borderColor: USER_COLORS[item.userName] || "var(--ticker-muted)" }}
+              >
+                {item.userName[0]}
+              </span>
+              <span
+                className="ticker-user"
+                style={{ color: USER_COLORS[item.userName] || "var(--ticker-muted)" }}
+              >
+                {item.userName}
+              </span>
+              <span className="ticker-verb">
+                {item.action}
+              </span>
+              <span className="ticker-show">
+                {item.showTitle}
+                {item.seasonNumber > 1 ? ` S${item.seasonNumber}` : ""}
+              </span>
+              {item.action === "ranked" && item.rankPosition && (
+                <span className={`ticker-rank ${item.rankPosition <= 3 ? "top" : ""}`}>
+                  #{item.rankPosition}
+                </span>
+              )}
+              {i < [...items, ...items].length - 1 && (
+                <span className="ticker-sep">/</span>
+              )}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -7,6 +7,7 @@ import { fetchRankingsForYear, fetchActiveYears, fetchCurrentlyWatching } from "
 import { YEARS } from "@/lib/constants";
 import type { User } from "@/types";
 import SiteSearch from "@/components/SiteSearch";
+import LatestMoves from "@/components/LatestMoves";
 
 export default function HomePage() {
   const [years, setYears] = useState<number[]>([...YEARS]);
@@ -122,6 +123,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ═══════════════ LATEST MOVES TICKER ═══════════════ */}
+      <LatestMoves />
 
       {/* ═══════════════ FEATURED RANKINGS PREVIEW ═══════════════ */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16">
