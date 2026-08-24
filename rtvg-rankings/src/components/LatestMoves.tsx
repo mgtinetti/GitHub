@@ -37,8 +37,7 @@ export default function LatestMoves() {
             )
           `)
           .gte("updated_at", since)
-          .order("updated_at", { ascending: false })
-          .limit(100),
+          .order("updated_at", { ascending: false }),
         supabase
           .from("currently_watching")
           .select(`
