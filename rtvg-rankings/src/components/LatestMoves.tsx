@@ -6,10 +6,9 @@ import { supabase } from "@/lib/supabase/client";
 interface MoveItem {
   id: string;
   userName: string;
-  action: "ranked" | "started";
+  action: "started" | "queued";
   showTitle: string;
   seasonNumber: number;
-  rankPosition?: number;
   timestamp: string;
 }
 
@@ -24,20 +23,9 @@ export default function LatestMoves() {
 
   useEffect(() => {
     async function load() {
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
-      const [rankingsRes, watchingRes, usersRes] = await Promise.all([
-        supabase
-          .from("ranking_entries")
-          .select(`
-            id, user_id, rank_position, updated_at,
-            seasons!inner(
-              season_number,
-              shows!inner(title)
-            )
-          `)
-          .gte("updated_at", since)
-          .order("updated_at", { ascending: false }),
+      const [watchingRes, pipelineRes, usersRes] = await Promise.all([
         supabase
           .from("currently_watching")
           .select(`
@@ -46,7 +34,16 @@ export default function LatestMoves() {
           `)
           .gte("added_at", since)
           .order("added_at", { ascending: false })
-          .limit(10),
+          .limit(20),
+        supabase
+          .from("pipeline")
+          .select(`
+            id, user_id, season_number, added_at,
+            shows!inner(title)
+          `)
+          .gte("added_at", since)
+          .order("added_at", { ascending: false })
+          .limit(20),
         supabase.from("users").select("id, display_name"),
       ]);
 
@@ -55,18 +52,6 @@ export default function LatestMoves() {
       );
 
       const moves: MoveItem[] = [];
-
-      for (const r of (rankingsRes.data || []) as any[]) {
-        moves.push({
-          id: `r-${r.id}`,
-          userName: userMap.get(r.user_id) || "Unknown",
-          action: "ranked",
-          showTitle: r.seasons?.shows?.title || "Unknown",
-          seasonNumber: r.seasons?.season_number || 1,
-          rankPosition: r.rank_position,
-          timestamp: r.updated_at,
-        });
-      }
 
       for (const w of (watchingRes.data || []) as any[]) {
         moves.push({
@@ -79,9 +64,19 @@ export default function LatestMoves() {
         });
       }
 
+      for (const p of (pipelineRes.data || []) as any[]) {
+        moves.push({
+          id: `p-${p.id}`,
+          userName: userMap.get(p.user_id) || "Unknown",
+          action: "queued",
+          showTitle: p.shows?.title || "Unknown",
+          seasonNumber: p.season_number,
+          timestamp: p.added_at,
+        });
+      }
+
       moves.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      // Deduplicate: keep one entry per user+show combination
       const seen = new Set<string>();
       const deduped = moves.filter((m) => {
         const key = `${m.userName}-${m.showTitle}`;
@@ -90,7 +85,7 @@ export default function LatestMoves() {
         return true;
       });
 
-      // Ensure all active users are represented by interleaving
+      // Interleave across users so everyone is represented
       const byUser = new Map<string, MoveItem[]>();
       for (const m of deduped) {
         const list = byUser.get(m.userName) || [];
@@ -148,11 +143,6 @@ export default function LatestMoves() {
                 {item.showTitle}
                 {item.seasonNumber > 1 ? ` S${item.seasonNumber}` : ""}
               </span>
-              {item.action === "ranked" && item.rankPosition && (
-                <span className={`ticker-rank ${item.rankPosition <= 3 ? "top" : ""}`}>
-                  #{item.rankPosition}
-                </span>
-              )}
               {i < [...items, ...items].length - 1 && (
                 <span className="ticker-sep">/</span>
               )}
