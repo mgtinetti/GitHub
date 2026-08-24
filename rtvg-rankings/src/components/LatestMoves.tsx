@@ -30,14 +30,14 @@ export default function LatestMoves() {
         supabase
           .from("ranking_entries")
           .select(`
-            id, user_id, rank_position, created_at,
+            id, user_id, rank_position, updated_at,
             seasons!inner(
               season_number,
               shows!inner(title)
             )
           `)
-          .gte("created_at", since)
-          .order("created_at", { ascending: false })
+          .gte("updated_at", since)
+          .order("updated_at", { ascending: false })
           .limit(15),
         supabase
           .from("currently_watching")
@@ -65,7 +65,7 @@ export default function LatestMoves() {
           showTitle: r.seasons?.shows?.title || "Unknown",
           seasonNumber: r.seasons?.season_number || 1,
           rankPosition: r.rank_position,
-          timestamp: r.created_at,
+          timestamp: r.updated_at,
         });
       }
 
