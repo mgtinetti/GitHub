@@ -7,6 +7,7 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-p
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
 import ShowSearch from "@/components/manage/ShowSearch";
+import { logActivity } from "@/lib/activity";
 
 interface WatchingEntry {
   id: string;
@@ -161,6 +162,11 @@ export default function ManageWatchingPage() {
     });
 
     if (!error) {
+      await logActivity(user.id, "add", {
+        category: "watching",
+        show_title: showDetails?.name || selectedShow.name,
+        season_number: seasonNumber,
+      });
       // Bump all existing entries' sort_order by 1
       for (const entry of entries) {
         await supabase

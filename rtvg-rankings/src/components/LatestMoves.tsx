@@ -6,9 +6,10 @@ import { supabase } from "@/lib/supabase/client";
 interface MoveItem {
   id: string;
   userName: string;
-  action: "started" | "queued";
+  verb: string;
   showTitle: string;
   seasonNumber: number;
+  detail: string | null;
   timestamp: string;
 }
 
@@ -18,32 +19,47 @@ const USER_COLORS: Record<string, string> = {
   Poteete: "var(--ticker-poteete)",
 };
 
+function formatVerb(eventType: string, metadata: any): { verb: string; detail: string | null } {
+  const category = metadata?.category;
+  switch (eventType) {
+    case "add":
+      if (category === "watching") return { verb: "started", detail: null };
+      if (category === "pipeline") return { verb: "queued", detail: null };
+      if (category === "ranking") {
+        const pos = metadata?.rank_position;
+        return { verb: "ranked", detail: pos ? `#${pos}` : null };
+      }
+      return { verb: "added", detail: null };
+    case "move":
+      if (category === "ranking") {
+        const from = metadata?.old_position;
+        const to = metadata?.new_position;
+        return { verb: "moved", detail: from && to ? `#${from} → #${to}` : null };
+      }
+      return { verb: "moved", detail: null };
+    case "remove":
+      return { verb: "dropped", detail: null };
+    case "finalize":
+      return { verb: "finalized", detail: null };
+    default:
+      return { verb: eventType, detail: null };
+  }
+}
+
 export default function LatestMoves() {
   const [items, setItems] = useState<MoveItem[]>([]);
 
   useEffect(() => {
     async function load() {
-      const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const [watchingRes, pipelineRes, usersRes] = await Promise.all([
+      const [eventsRes, usersRes] = await Promise.all([
         supabase
-          .from("currently_watching")
-          .select(`
-            id, user_id, season_number, added_at,
-            shows!inner(title)
-          `)
-          .gte("added_at", since)
-          .order("added_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("pipeline")
-          .select(`
-            id, user_id, season_number, added_at,
-            shows!inner(title)
-          `)
-          .gte("added_at", since)
-          .order("added_at", { ascending: false })
-          .limit(20),
+          .from("activity_feed_events")
+          .select("id, user_id, event_type, metadata, created_at")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(50),
         supabase.from("users").select("id, display_name"),
       ]);
 
@@ -52,40 +68,27 @@ export default function LatestMoves() {
       );
 
       const moves: MoveItem[] = [];
-
-      for (const w of (watchingRes.data || []) as any[]) {
+      for (const ev of (eventsRes.data || []) as any[]) {
+        const { verb, detail } = formatVerb(ev.event_type, ev.metadata);
         moves.push({
-          id: `w-${w.id}`,
-          userName: userMap.get(w.user_id) || "Unknown",
-          action: "started",
-          showTitle: w.shows?.title || "Unknown",
-          seasonNumber: w.season_number,
-          timestamp: w.added_at,
+          id: ev.id,
+          userName: userMap.get(ev.user_id) || "Unknown",
+          verb,
+          showTitle: ev.metadata?.show_title || "Unknown",
+          seasonNumber: ev.metadata?.season_number || 1,
+          detail,
+          timestamp: ev.created_at,
         });
       }
-
-      for (const p of (pipelineRes.data || []) as any[]) {
-        moves.push({
-          id: `p-${p.id}`,
-          userName: userMap.get(p.user_id) || "Unknown",
-          action: "queued",
-          showTitle: p.shows?.title || "Unknown",
-          seasonNumber: p.season_number,
-          timestamp: p.added_at,
-        });
-      }
-
-      moves.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       const seen = new Set<string>();
       const deduped = moves.filter((m) => {
-        const key = `${m.userName}-${m.showTitle}`;
+        const key = `${m.userName}-${m.verb}-${m.showTitle}-S${m.seasonNumber}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
 
-      // Interleave across users so everyone is represented
       const byUser = new Map<string, MoveItem[]>();
       for (const m of deduped) {
         const list = byUser.get(m.userName) || [];
@@ -137,12 +140,17 @@ export default function LatestMoves() {
                 {item.userName}
               </span>
               <span className="ticker-verb">
-                {item.action}
+                {item.verb}
               </span>
               <span className="ticker-show">
                 {item.showTitle}
                 {item.seasonNumber > 1 ? ` S${item.seasonNumber}` : ""}
               </span>
+              {item.detail && (
+                <span className="ticker-rank">
+                  {item.detail}
+                </span>
+              )}
               {i < [...items, ...items].length - 1 && (
                 <span className="ticker-sep">/</span>
               )}

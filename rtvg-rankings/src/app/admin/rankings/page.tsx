@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
@@ -9,6 +9,7 @@ import ShowSearch from "@/components/manage/ShowSearch";
 import SeasonPicker from "@/components/manage/SeasonPicker";
 import RankingList, { type ManagedEntry } from "@/components/manage/RankingList";
 import { YEARS } from "@/lib/constants";
+import { logActivity } from "@/lib/activity";
 import { TMDB_IMAGE_BASE } from "@/lib/constants";
 import type { Tier } from "@/types";
 
@@ -42,6 +43,7 @@ function ManageRankingsContent() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [selectedShow, setSelectedShow] = useState<SelectedShow | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const savedEntriesRef = useRef<ManagedEntry[]>([]);
   const [showAddYear, setShowAddYear] = useState(false);
   const [newYearInput, setNewYearInput] = useState("");
 
@@ -124,6 +126,7 @@ function ManageRankingsContent() {
       });
 
       setEntries(mapped);
+      savedEntriesRef.current = mapped;
       setLoadingEntries(false);
       setHasChanges(false);
     },
@@ -307,6 +310,43 @@ function ManageRankingsContent() {
 
         if (insertErr) {
           throw new Error(`Insert failed: ${insertErr.message}`);
+        }
+      }
+
+      // Log actual changes to activity feed
+      const oldMap = new Map(savedEntriesRef.current.map((e) => [e.seasonDbId, e]));
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const oldEntry = oldMap.get(entry.seasonDbId);
+        const newRank = i + 1;
+        if (!oldEntry) {
+          await logActivity(user.id, "add", {
+            category: "ranking",
+            show_title: entry.showName,
+            season_number: entry.seasonNumber,
+            rank_position: newRank,
+          }, year);
+        } else if (oldEntry.rank_position !== undefined) {
+          const oldRank = savedEntriesRef.current.indexOf(oldEntry) + 1;
+          if (oldRank !== newRank) {
+            await logActivity(user.id, "move", {
+              category: "ranking",
+              show_title: entry.showName,
+              season_number: entry.seasonNumber,
+              old_position: oldRank,
+              new_position: newRank,
+            }, year);
+          }
+        }
+      }
+      for (const old of savedEntriesRef.current) {
+        const stillExists = entries.some((e) => e.seasonDbId === old.seasonDbId);
+        if (!stillExists) {
+          await logActivity(user.id, "remove", {
+            category: "ranking",
+            show_title: old.showName,
+            season_number: old.seasonNumber,
+          }, year);
         }
       }
 

@@ -7,6 +7,7 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-p
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
 import ShowSearch from "@/components/manage/ShowSearch";
+import { logActivity } from "@/lib/activity";
 
 interface PipelineEntry {
   id: string;
@@ -158,6 +159,11 @@ export default function ManagePipelinePage() {
     });
 
     if (!error) {
+      await logActivity(user.id, "add", {
+        category: "pipeline",
+        show_title: showDetails?.name || selectedShow.name,
+        season_number: seasonNumber,
+      });
       setSelectedShow(null);
       setShowSeasons([]);
       await loadEntries();
@@ -206,6 +212,12 @@ export default function ManagePipelinePage() {
       show_id: entry.show_id,
       season_number: entry.season_number,
       sort_order: nextSort,
+    });
+
+    await logActivity(user!.id, "add", {
+      category: "watching",
+      show_title: entry.show_title,
+      season_number: entry.season_number,
     });
 
     await supabase.from("pipeline").delete().eq("id", entry.id);
