@@ -24,6 +24,8 @@ export default function LatestMoves() {
 
   useEffect(() => {
     async function load() {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
       const [rankingsRes, watchingRes, usersRes] = await Promise.all([
         supabase
           .from("ranking_entries")
@@ -34,6 +36,7 @@ export default function LatestMoves() {
               shows!inner(title)
             )
           `)
+          .gte("created_at", since)
           .order("created_at", { ascending: false })
           .limit(15),
         supabase
@@ -42,6 +45,7 @@ export default function LatestMoves() {
             id, user_id, season_number, added_at,
             shows!inner(title)
           `)
+          .gte("added_at", since)
           .order("added_at", { ascending: false })
           .limit(10),
         supabase.from("users").select("id, display_name"),
