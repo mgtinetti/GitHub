@@ -172,6 +172,7 @@ export default function ManagePipelinePage() {
   }
 
   async function removeEntry(id: string) {
+    const removed = entries.find((e) => e.id === id);
     await supabase.from("pipeline").delete().eq("id", id);
     const remaining = entries.filter((e) => e.id !== id);
     for (let i = 0; i < remaining.length; i++) {
@@ -179,6 +180,13 @@ export default function ManagePipelinePage() {
         .from("pipeline")
         .update({ sort_order: i + 1 })
         .eq("id", remaining[i].id);
+    }
+    if (removed && user) {
+      await logActivity(user.id, "remove", {
+        category: "pipeline",
+        show_title: removed.show_title,
+        season_number: removed.season_number,
+      });
     }
     await loadEntries();
   }

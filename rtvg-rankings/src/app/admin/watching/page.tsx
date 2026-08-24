@@ -182,14 +182,21 @@ export default function ManageWatchingPage() {
   }
 
   async function removeEntry(id: string) {
+    const removed = entries.find((e) => e.id === id);
     await supabase.from("currently_watching").delete().eq("id", id);
     const remaining = entries.filter((e) => e.id !== id);
-    // Re-number sort_order
     for (let i = 0; i < remaining.length; i++) {
       await supabase
         .from("currently_watching")
         .update({ sort_order: i + 1 })
         .eq("id", remaining[i].id);
+    }
+    if (removed && user) {
+      await logActivity(user.id, "remove", {
+        category: "watching",
+        show_title: removed.show_title,
+        season_number: removed.season_number,
+      });
     }
     await loadEntries();
   }
@@ -210,9 +217,7 @@ export default function ManageWatchingPage() {
   }
 
   async function moveToRankings(entry: WatchingEntry) {
-    // Remove from currently watching
     await supabase.from("currently_watching").delete().eq("id", entry.id);
-    // Re-number remaining
     const remaining = entries.filter((e) => e.id !== entry.id);
     for (let i = 0; i < remaining.length; i++) {
       await supabase
@@ -220,7 +225,13 @@ export default function ManageWatchingPage() {
         .update({ sort_order: i + 1 })
         .eq("id", remaining[i].id);
     }
-    // Navigate to rankings page
+    if (user) {
+      await logActivity(user.id, "finalize", {
+        category: "watching",
+        show_title: entry.show_title,
+        season_number: entry.season_number,
+      });
+    }
     window.location.href = "/admin/rankings";
   }
 
