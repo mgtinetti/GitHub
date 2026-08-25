@@ -6,10 +6,13 @@ export async function logActivity(
   metadata: Record<string, any>,
   year?: number
 ) {
-  await supabase.from("activity_feed_events").insert({
+  const { error } = await supabase.from("activity_feed_events").insert({
     user_id: userId,
     event_type: eventType,
     metadata,
     year: year || null,
   });
+  if (error) {
+    console.error("logActivity failed:", error.message, { userId, eventType, metadata });
+  }
 }
