@@ -6,6 +6,8 @@ export async function logActivity(
   metadata: Record<string, any>,
   year?: number
 ) {
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log("logActivity called:", { userId, eventType, metadata, hasSession: !!session, authUid: session?.user?.id });
   const { error } = await supabase.from("activity_feed_events").insert({
     user_id: userId,
     event_type: eventType,
@@ -13,6 +15,8 @@ export async function logActivity(
     year: year || null,
   });
   if (error) {
-    console.error("logActivity failed:", error.message, { userId, eventType, metadata });
+    console.error("logActivity FAILED:", error.message, error);
+  } else {
+    console.log("logActivity SUCCESS");
   }
 }
