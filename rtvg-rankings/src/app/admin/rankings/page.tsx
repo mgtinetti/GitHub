@@ -326,7 +326,7 @@ function ManageRankingsContent() {
             season_number: entry.seasonNumber,
             rank_position: newRank,
           }, year);
-        } else if (oldEntry.rank_position !== undefined) {
+        } else {
           const oldRank = savedEntriesRef.current.indexOf(oldEntry) + 1;
           if (oldRank !== newRank) {
             await logActivity(user.id, "move", {
