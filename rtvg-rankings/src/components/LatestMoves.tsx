@@ -40,7 +40,7 @@ function formatVerb(eventType: string, metadata: any): { verb: string; detail: s
     case "remove":
       return { verb: "dropped", detail: null };
     case "finalize":
-      return { verb: "finalized", detail: null };
+      return { verb: "finished", detail: null };
     default:
       return { verb: eventType, detail: null };
   }
@@ -53,13 +53,25 @@ export default function LatestMoves() {
     async function load() {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const [eventsRes, usersRes] = await Promise.all([
+      const [eventsRes, watchingRes, pipelineRes, usersRes] = await Promise.all([
         supabase
           .from("activity_feed_events")
           .select("id, user_id, event_type, metadata, created_at")
           .gte("created_at", since)
           .order("created_at", { ascending: false })
           .limit(50),
+        supabase
+          .from("currently_watching")
+          .select(`id, user_id, season_number, added_at, shows!inner(title)`)
+          .gte("added_at", since)
+          .order("added_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("pipeline")
+          .select(`id, user_id, season_number, added_at, shows!inner(title)`)
+          .gte("added_at", since)
+          .order("added_at", { ascending: false })
+          .limit(20),
         supabase.from("users").select("id, display_name"),
       ]);
 
@@ -68,10 +80,11 @@ export default function LatestMoves() {
       );
 
       const moves: MoveItem[] = [];
+
       for (const ev of (eventsRes.data || []) as any[]) {
         const { verb, detail } = formatVerb(ev.event_type, ev.metadata);
         moves.push({
-          id: ev.id,
+          id: `ev-${ev.id}`,
           userName: userMap.get(ev.user_id) || "Unknown",
           verb,
           showTitle: ev.metadata?.show_title || "Unknown",
@@ -80,6 +93,32 @@ export default function LatestMoves() {
           timestamp: ev.created_at,
         });
       }
+
+      for (const w of (watchingRes.data || []) as any[]) {
+        moves.push({
+          id: `w-${w.id}`,
+          userName: userMap.get(w.user_id) || "Unknown",
+          verb: "started",
+          showTitle: w.shows?.title || "Unknown",
+          seasonNumber: w.season_number,
+          detail: null,
+          timestamp: w.added_at,
+        });
+      }
+
+      for (const p of (pipelineRes.data || []) as any[]) {
+        moves.push({
+          id: `p-${p.id}`,
+          userName: userMap.get(p.user_id) || "Unknown",
+          verb: "queued",
+          showTitle: p.shows?.title || "Unknown",
+          seasonNumber: p.season_number,
+          detail: null,
+          timestamp: p.added_at,
+        });
+      }
+
+      moves.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       const seen = new Set<string>();
       const deduped = moves.filter((m) => {
