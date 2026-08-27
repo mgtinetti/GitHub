@@ -44,6 +44,7 @@ function ManageRankingsContent() {
   const [selectedShow, setSelectedShow] = useState<SelectedShow | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const savedEntriesRef = useRef<ManagedEntry[]>([]);
+  const touchedShowsRef = useRef<Set<string>>(new Set());
   const [showAddYear, setShowAddYear] = useState(false);
   const [newYearInput, setNewYearInput] = useState("");
 
@@ -254,16 +255,19 @@ function ManageRankingsContent() {
     };
 
     setEntries((prev) => [...prev, newEntry]);
+    touchedShowsRef.current.add(newEntry.localId);
     setSelectedShow(null);
     setHasChanges(true);
   }
 
-  function handleReorder(newEntries: ManagedEntry[]) {
+  function handleReorder(newEntries: ManagedEntry[], movedLocalId: string) {
+    touchedShowsRef.current.add(movedLocalId);
     setEntries(newEntries);
     setHasChanges(true);
   }
 
   function handleRemove(localId: string) {
+    touchedShowsRef.current.add(localId);
     setEntries((prev) => prev.filter((e) => e.localId !== localId));
     setHasChanges(true);
   }
@@ -313,42 +317,33 @@ function ManageRankingsContent() {
         }
       }
 
-      // Log only intentional changes (not cascading ±1 shifts from adds/removes/moves)
-      const oldMap = new Map(savedEntriesRef.current.map((e, i) => [e.seasonDbId, i + 1]));
-      const added: { entry: ManagedEntry; rank: number }[] = [];
-      const moved: { entry: ManagedEntry; oldRank: number; newRank: number }[] = [];
+      // Log only shows the user explicitly touched (not cascading shifts)
+      const touched = touchedShowsRef.current;
+      const oldMap = new Map(savedEntriesRef.current.map((e, i) => [e.seasonDbId, { entry: e, rank: i + 1 }]));
 
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
-        const oldRank = oldMap.get(entry.seasonDbId);
         const newRank = i + 1;
-        if (oldRank === undefined) {
-          added.push({ entry, rank: newRank });
-        } else if (Math.abs(oldRank - newRank) > 1) {
-          moved.push({ entry, oldRank, newRank });
+        const old = oldMap.get(entry.seasonDbId);
+        if (!old && touched.has(entry.localId)) {
+          await logActivity(user.id, "add", {
+            category: "ranking",
+            show_title: entry.showName,
+            season_number: entry.seasonNumber,
+            rank_position: newRank,
+          }, year);
+        } else if (old && touched.has(entry.localId) && old.rank !== newRank) {
+          await logActivity(user.id, "move", {
+            category: "ranking",
+            show_title: entry.showName,
+            season_number: entry.seasonNumber,
+            old_position: old.rank,
+            new_position: newRank,
+          }, year);
         }
       }
-
-      for (const { entry, rank } of added) {
-        await logActivity(user.id, "add", {
-          category: "ranking",
-          show_title: entry.showName,
-          season_number: entry.seasonNumber,
-          rank_position: rank,
-        }, year);
-      }
-      for (const { entry, oldRank, newRank } of moved) {
-        await logActivity(user.id, "move", {
-          category: "ranking",
-          show_title: entry.showName,
-          season_number: entry.seasonNumber,
-          old_position: oldRank,
-          new_position: newRank,
-        }, year);
-      }
       for (const old of savedEntriesRef.current) {
-        const stillExists = entries.some((e) => e.seasonDbId === old.seasonDbId);
-        if (!stillExists) {
+        if (!entries.some((e) => e.seasonDbId === old.seasonDbId)) {
           await logActivity(user.id, "remove", {
             category: "ranking",
             show_title: old.showName,
@@ -357,10 +352,10 @@ function ManageRankingsContent() {
         }
       }
 
+      touchedShowsRef.current.clear();
       setSaveMessage("Rankings saved!");
       setHasChanges(false);
 
-      // Reload to get fresh DB IDs
       await loadRankings();
     } catch (err: any) {
       setSaveMessage(`Error: ${err.message}`);

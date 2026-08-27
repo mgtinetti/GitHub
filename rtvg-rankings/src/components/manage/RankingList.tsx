@@ -26,7 +26,7 @@ export interface ManagedEntry {
 
 interface RankingListProps {
   entries: ManagedEntry[];
-  onReorder: (entries: ManagedEntry[]) => void;
+  onReorder: (entries: ManagedEntry[], movedLocalId: string) => void;
   onRemove: (localId: string) => void;
   onUpdateEntry: (localId: string, updates: Partial<ManagedEntry>) => void;
 }
@@ -44,7 +44,7 @@ export default function RankingList({
     const items = Array.from(entries);
     const [reordered] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reordered);
-    onReorder(items);
+    onReorder(items, reordered.localId);
   }
 
   if (entries.length === 0) {
