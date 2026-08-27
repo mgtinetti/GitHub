@@ -313,31 +313,38 @@ function ManageRankingsContent() {
         }
       }
 
-      // Log actual changes to activity feed
-      const oldMap = new Map(savedEntriesRef.current.map((e) => [e.seasonDbId, e]));
+      // Log only intentional changes (not cascading ±1 shifts from adds/removes/moves)
+      const oldMap = new Map(savedEntriesRef.current.map((e, i) => [e.seasonDbId, i + 1]));
+      const added: { entry: ManagedEntry; rank: number }[] = [];
+      const moved: { entry: ManagedEntry; oldRank: number; newRank: number }[] = [];
+
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
-        const oldEntry = oldMap.get(entry.seasonDbId);
+        const oldRank = oldMap.get(entry.seasonDbId);
         const newRank = i + 1;
-        if (!oldEntry) {
-          await logActivity(user.id, "add", {
-            category: "ranking",
-            show_title: entry.showName,
-            season_number: entry.seasonNumber,
-            rank_position: newRank,
-          }, year);
-        } else {
-          const oldRank = savedEntriesRef.current.indexOf(oldEntry) + 1;
-          if (oldRank !== newRank) {
-            await logActivity(user.id, "move", {
-              category: "ranking",
-              show_title: entry.showName,
-              season_number: entry.seasonNumber,
-              old_position: oldRank,
-              new_position: newRank,
-            }, year);
-          }
+        if (oldRank === undefined) {
+          added.push({ entry, rank: newRank });
+        } else if (Math.abs(oldRank - newRank) > 1) {
+          moved.push({ entry, oldRank, newRank });
         }
+      }
+
+      for (const { entry, rank } of added) {
+        await logActivity(user.id, "add", {
+          category: "ranking",
+          show_title: entry.showName,
+          season_number: entry.seasonNumber,
+          rank_position: rank,
+        }, year);
+      }
+      for (const { entry, oldRank, newRank } of moved) {
+        await logActivity(user.id, "move", {
+          category: "ranking",
+          show_title: entry.showName,
+          season_number: entry.seasonNumber,
+          old_position: oldRank,
+          new_position: newRank,
+        }, year);
       }
       for (const old of savedEntriesRef.current) {
         const stillExists = entries.some((e) => e.seasonDbId === old.seasonDbId);
