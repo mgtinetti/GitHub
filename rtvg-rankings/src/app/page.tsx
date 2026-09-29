@@ -43,7 +43,7 @@ export default function HomePage() {
       const total = Object.values(rankings).reduce((sum, r) => sum + r.length, 0);
       setTotalRankings(total);
 
-      const showMap = new Map<string, { id: string; title: string; poster_url: string; network: string; season_number: number; totalRank: number; count: number }>();
+      const showMap = new Map<string, { id: string; title: string; poster_url: string; network: string; season_number: number; totalRank: number; count: number; totalScore: number; scoreCount: number }>();
       for (const entries of Object.values(rankings)) {
         for (const entry of entries) {
           if (!entry.show || !entry.season) continue;
@@ -52,6 +52,10 @@ export default function HomePage() {
           if (existing) {
             existing.totalRank += entry.rank_position;
             existing.count++;
+            if (entry.score != null) {
+              existing.totalScore += entry.score;
+              existing.scoreCount++;
+            }
           } else {
             showMap.set(key, {
               id: entry.show.id,
@@ -61,13 +65,21 @@ export default function HomePage() {
               season_number: entry.season.season_number,
               totalRank: entry.rank_position,
               count: 1,
+              totalScore: entry.score ?? 0,
+              scoreCount: entry.score != null ? 1 : 0,
             });
           }
         }
       }
       const sorted = Array.from(showMap.values())
         .filter((s) => s.count >= 2)
-        .sort((a, b) => a.totalRank / a.count - b.totalRank / b.count)
+        .sort((a, b) => {
+          const avgRankDiff = a.totalRank / a.count - b.totalRank / b.count;
+          if (Math.abs(avgRankDiff) > 0.001) return avgRankDiff;
+          const avgScoreA = a.scoreCount > 0 ? a.totalScore / a.scoreCount : 0;
+          const avgScoreB = b.scoreCount > 0 ? b.totalScore / b.scoreCount : 0;
+          return avgScoreB - avgScoreA;
+        })
         .slice(0, 6);
       setTopShows(sorted);
 
